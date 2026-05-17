@@ -75,3 +75,55 @@ export async function GET(
         );
     }
 }
+
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        // 🔐 Auth check
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        await connectDB();
+
+        const recordId = params.id;
+
+        // ✅ Validate ID
+        if (!mongoose.Types.ObjectId.isValid(recordId)) {
+            return NextResponse.json(
+                { error: "Invalid record ID" },
+                { status: 400 }
+            );
+        }
+
+        // 🗑️ Delete record
+        const deletedRecord = await Record.findByIdAndDelete(recordId);
+
+        if (!deletedRecord) {
+            return NextResponse.json(
+                { error: "Record not found" },
+                { status: 404 }
+            );
+        }
+
+        // 🔥 ALSO delete associated result
+        await mongoose.model("Result").deleteMany({
+            recordId: deletedRecord._id,
+        });
+
+        return NextResponse.json({
+            success: true,
+            message: "Record deleted successfully",
+        });
+
+    } catch (error) {
+        console.error("DELETE RECORD ERROR:", error);
+        return NextResponse.json(
+            { error: "Failed to delete record" },
+            { status: 500 }
+        );
+    }
+}
