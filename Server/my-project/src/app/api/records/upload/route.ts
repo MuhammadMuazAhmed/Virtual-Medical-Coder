@@ -5,6 +5,7 @@ import connectDB from "@/lib/dbConnect";
 import Record from "@/models/Record";
 import Result from "@/models/Result";
 import Patient from "@/models/Patient";
+import cloudinary from "@/lib/Cloudinary";
 
 export async function POST(req: NextRequest) {
     try {
@@ -56,11 +57,33 @@ export async function POST(req: NextRequest) {
 
         const data = await response.json();
 
+        // Upload file to Cloudinary
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            cloudinary.uploader.upload_stream(
+                {
+                    resource_type: "auto",
+                    folder: "medical_records",
+                },
+                (error, result) => {
+                    if (error) {
+                        console.error("Cloudinary upload error:", error);
+                        reject(error);
+                    } else if (result) {
+                        resolve(result as { secure_url: string });
+                    } else {
+                        reject(new Error("Cloudinary upload failed with no result"));
+                    }
+                }
+            ).end(buffer);
+        });
+
         // ✅ Fix 4: Honest field name
         const record = await Record.create({
             patientId,
             clinicalText: data.text,
-            fileName: file.name,   // renamed from fileUrl
+            fileName: uploadResult.secure_url,   // Store Cloudinary secure URL here
             fileType: file.type,
             status: "processed",
         });

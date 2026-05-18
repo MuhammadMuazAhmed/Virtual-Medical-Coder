@@ -25,7 +25,7 @@ export const authOptions: NextAuthOptions = {
                 try {
                     // 🔍 Find user by email
                     const user = await User.findOne({
-                        email: credentials?.email,
+                        Email: credentials?.email,
                     });
 
                     if (!user) {
@@ -35,7 +35,7 @@ export const authOptions: NextAuthOptions = {
                     // 🔐 Compare hashed password
                     const isPasswordValid = await bcrypt.compare(
                         String(credentials?.password),
-                        user.password
+                        user.Password
                     );
 
                     if (!isPasswordValid) {
@@ -45,8 +45,8 @@ export const authOptions: NextAuthOptions = {
                     // ✅ Return session user
                     return {
                         id: user._id.toString(),
-                        email: user.email,
-                        name: user.name,
+                        email: user.Email,
+                        name: user.Name,
                     };
 
                 } catch (error) {

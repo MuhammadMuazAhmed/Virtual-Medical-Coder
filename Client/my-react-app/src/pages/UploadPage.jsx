@@ -1,11 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadRecord } from "../services/api";
+import { uploadRecord, getPatients } from "../services/api";
 
 const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const MAX_SIZE_MB = 10;
-
-const STEPS = ["Select file", "Patient info", "Processing"];
+const STEPS = ["Select file", "Select patient", "Processing"];
 
 export default function UploadPage() {
     const [file, setFile] = useState(null);
@@ -14,15 +13,34 @@ export default function UploadPage() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [dragOver, setDragOver] = useState(false);
-    const [step, setStep] = useState(0); // 0-indexed
+    const [step, setStep] = useState(0);
+
+    const [patients, setPatients] = useState([]);
+    const [patientsLoading, setPatientsLoading] = useState(false);
+    const [patientsError, setPatientsError] = useState("");
 
     const navigate = useNavigate();
 
-    // ── File handling ──────────────────────────────────────────────────────────
+    // ── Fetch patients on mount ────────────────────────────────────────────────
+    useEffect(() => {
+        const fetchPatients = async () => {
+            try {
+                setPatientsLoading(true);
+                setPatientsError("");
+                const res = await getPatients();
+                setPatients(res.data);
+            } catch (err) {
+                setPatientsError("Failed to load patients. Please refresh.");
+            } finally {
+                setPatientsLoading(false);
+            }
+        };
+        fetchPatients();
+    }, []);
 
+    // ── File handling ──────────────────────────────────────────────────────────
     const handleFile = useCallback((f) => {
         if (!f) return;
-
         if (!ACCEPTED_TYPES.includes(f.type)) {
             setError("Unsupported file type. Please upload a PDF, JPG, PNG, or WEBP.");
             return;
@@ -31,16 +49,12 @@ export default function UploadPage() {
             setError(`File is too large. Maximum size is ${MAX_SIZE_MB}MB.`);
             return;
         }
-
         setError("");
         setFile(f);
         setStep(1);
     }, []);
 
-    const removeFile = () => {
-        setFile(null);
-        setStep(0);
-    };
+    const removeFile = () => { setFile(null); setStep(0); };
 
     const onDrop = useCallback((e) => {
         e.preventDefault();
@@ -48,40 +62,30 @@ export default function UploadPage() {
         handleFile(e.dataTransfer.files[0]);
     }, [handleFile]);
 
-    const onDragOver = (e) => { e.preventDefault(); setDragOver(true); };
-    const onDragLeave = () => setDragOver(false);
-
     // ── Submit ─────────────────────────────────────────────────────────────────
-
     const handleUpload = async (e) => {
         e.preventDefault();
         setError("");
         setSuccess("");
 
         if (!file) return setError("Please select a file to upload.");
-        if (!patientId.trim()) return setError("Patient ID is required.");
-
-        // ✅ Validate ObjectId format before hitting the server
-        if (!/^[a-f\d]{24}$/i.test(patientId.trim())) {
-            return setError("Patient ID must be a valid 24-character MongoDB ObjectId.");
-        }
+        if (!patientId) return setError("Please select a patient.");
 
         try {
             setLoading(true);
             setStep(2);
-            await uploadRecord(file, patientId.trim());
+            await uploadRecord(file, patientId);
             setSuccess("Record uploaded and processed successfully.");
             setTimeout(() => navigate("/"), 1500);
         } catch (err) {
             setError(err.message);
-            setStep(1); // step back on failure
+            setStep(1);
         } finally {
             setLoading(false);
         }
     };
 
     // ── Helpers ────────────────────────────────────────────────────────────────
-
     const formatBytes = (bytes) => {
         if (bytes < 1024) return `${bytes} B`;
         if (bytes < 1048576) return `${Math.round(bytes / 1024)} KB`;
@@ -89,6 +93,7 @@ export default function UploadPage() {
     };
 
     const getExtLabel = (f) => f.name.split(".").pop().toUpperCase().slice(0, 4);
+    const selectedPatient = patients.find((p) => p._id === patientId);
 
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -114,13 +119,14 @@ export default function UploadPage() {
                 <div className="flex mb-7">
                     {STEPS.map((label, i) => (
                         <div key={label} className="flex-1 relative text-center">
-                            {/* connector line */}
                             {i < STEPS.length - 1 && (
                                 <div className={`absolute top-2.5 left-1/2 right-[-50%] h-px ${i < step ? "bg-green-400" : "bg-gray-100"}`} />
                             )}
                             <div className={`w-5 h-5 rounded-full mx-auto mb-1.5 flex items-center justify-center text-xs relative z-10 border transition
-                ${i < step ? "bg-green-500 border-green-500 text-white"
-                                    : i === step ? "bg-gray-900 border-gray-900 text-white"
+                                ${i < step
+                                    ? "bg-green-500 border-green-500 text-white"
+                                    : i === step
+                                        ? "bg-gray-900 border-gray-900 text-white"
                                         : "bg-white border-gray-200 text-gray-400"}`}
                             >
                                 {i < step ? "✓" : i + 1}
@@ -149,35 +155,34 @@ export default function UploadPage() {
 
                 <form onSubmit={handleUpload} className="space-y-5">
 
-                    {/* File drop zone */}
+                    {/* ── File drop zone ── */}
                     <div>
                         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
                             Document
                         </label>
-
                         {!file ? (
                             <div
                                 onDrop={onDrop}
-                                onDragOver={onDragOver}
-                                onDragLeave={onDragLeave}
+                                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                                onDragLeave={() => setDragOver(false)}
                                 onClick={() => document.getElementById("file-input").click()}
                                 className={`border border-dashed rounded-xl p-8 text-center cursor-pointer transition
-                  ${dragOver
+                                    ${dragOver
                                         ? "border-blue-400 bg-blue-50"
-                                        : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"
-                                    }`}
+                                        : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"}`}
                             >
                                 <div className="text-2xl mb-2">📄</div>
                                 <p className="text-sm font-medium text-gray-600 mb-1">
                                     Drop file here or click to browse
                                 </p>
-                                <p className="text-xs text-gray-400">PDF, JPG, PNG, WEBP · max {MAX_SIZE_MB} MB</p>
+                                <p className="text-xs text-gray-400">
+                                    PDF, JPG, PNG, WEBP · max {MAX_SIZE_MB} MB
+                                </p>
                                 <input
                                     id="file-input"
                                     type="file"
                                     accept=".pdf,image/*"
                                     className="hidden"
-                                    // ✅ Fix: was [e.target].files[0] — markdown link bug
                                     onChange={(e) => handleFile(e.target.files[0])}
                                 />
                             </div>
@@ -187,7 +192,6 @@ export default function UploadPage() {
                                     {getExtLabel(file)}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    {/* ✅ Fix: was [file.name] — markdown link bug */}
                                     <p className="text-sm font-medium text-gray-800 truncate">{file.name}</p>
                                     <p className="text-xs text-gray-400">{formatBytes(file.size)}</p>
                                 </div>
@@ -202,28 +206,77 @@ export default function UploadPage() {
                         )}
                     </div>
 
-                    {/* Patient ID */}
+                    {/* ── Patient selector ── */}
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                            Patient ID
-                        </label>
-                        <input
-                            type="text"
-                            value={patientId}
-                            // ✅ Fix: was [e.target].value — markdown link bug
-                            onChange={(e) => setPatientId(e.target.value)}
-                            placeholder="e.g. 664f3c2a1b2e3d4f5a6b7c8d"
-                            className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg bg-white text-gray-800 placeholder-gray-300 outline-none focus:border-gray-400 transition"
-                        />
-                        <p className="text-xs text-gray-400 mt-1.5">
-                            24-character MongoDB ObjectId of the patient
-                        </p>
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Patient
+                            </label>
+                            {/* Link to create patient page */}
+                            <button
+                                type="button"
+                                onClick={() => navigate("/patients/create")}
+                                className="text-xs text-gray-400 hover:text-gray-700 transition"
+                            >
+                                + New patient
+                            </button>
+                        </div>
+
+                        {patientsLoading ? (
+                            <div className="text-xs text-gray-400 py-3 text-center bg-gray-50 rounded-lg border border-gray-100">
+                                Loading patients...
+                            </div>
+                        ) : patientsError ? (
+                            <div className="text-xs text-red-500 py-2">{patientsError}</div>
+                        ) : patients.length === 0 ? (
+                            <div className="text-xs text-gray-400 py-3 text-center bg-gray-50 rounded-lg border border-gray-100">
+                                No patients found.{" "}
+                                <button
+                                    type="button"
+                                    onClick={() => navigate("/patients/create")}
+                                    className="text-gray-600 underline"
+                                >
+                                    Create one first
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <select
+                                    value={patientId}
+                                    onChange={(e) => setPatientId(e.target.value)}
+                                    className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg bg-white text-gray-800 outline-none focus:border-gray-400 transition"
+                                >
+                                    <option value="">— Select a patient —</option>
+                                    {patients.map((p) => (
+                                        <option key={p._id} value={p._id}>
+                                            {p.PatientName} · {p.Age}y · {p.Gender}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                {/* Selected patient confirmation badge */}
+                                {selectedPatient && (
+                                    <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-lg">
+                                        <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-xs font-medium text-green-700 flex-shrink-0">
+                                            {selectedPatient.PatientName[0]}
+                                        </div>
+                                        <span className="text-xs text-green-700 font-medium">
+                                            {selectedPatient.PatientName}
+                                        </span>
+                                        <span className="text-xs text-green-500 ml-auto">
+                                            {selectedPatient.Age}y · {selectedPatient.Gender}
+                                        </span>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
 
+                    {/* ── Submit ── */}
                     <div className="border-t border-gray-100 pt-5">
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || !file || !patientId}
                             className="w-full bg-gray-900 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-gray-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             {loading ? (
@@ -235,6 +288,11 @@ export default function UploadPage() {
                                 "Upload & Process"
                             )}
                         </button>
+                        {(!file || !patientId) && (
+                            <p className="text-xs text-gray-400 text-center mt-2">
+                                {!file ? "Select a file to continue" : "Select a patient to continue"}
+                            </p>
+                        )}
                     </div>
                 </form>
             </div>

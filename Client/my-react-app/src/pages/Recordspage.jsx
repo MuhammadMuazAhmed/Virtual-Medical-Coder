@@ -141,8 +141,8 @@ export default function RecordsPage() {
                         key={f}
                         onClick={() => { setFilter(f); setPage(1); }}
                         className={`text-xs px-4 py-2 rounded-full border transition ${filter === f
-                                ? "bg-gray-900 text-white border-gray-900"
-                                : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                            ? "bg-gray-900 text-white border-gray-900"
+                            : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
                             }`}
                     >
                         {f === "all" ? "All" : f === "processed" ? "Processed" : "Pending"}

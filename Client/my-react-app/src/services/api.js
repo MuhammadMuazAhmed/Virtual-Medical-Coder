@@ -1,8 +1,9 @@
-// ✅ Fix 2: Catch missing env var at module load time
-const API_URL = import.meta.env.VITE_API_URL;
+// ✅ Fix 2: Catch missing env var at module load time and strip trailing slash to prevent double-slash redirects
+let API_URL = import.meta.env.VITE_API_URL;
 if (!API_URL) {
     throw new Error("VITE_API_URL is not defined in your .env file");
 }
+API_URL = API_URL.replace(/\/$/, "");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,103 @@ export const deleteRecord = async (id) => {
         {
             method: "DELETE",
             headers: getHeaders(),
+            credentials: "include",
+        }
+    );
+
+    return handleResponse(res);
+};
+
+export const getPatients = async () => {
+
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/patients`,
+        {
+            method: "GET",
+            headers: getHeaders(),
+            credentials: "include",
+        }
+    );
+
+    return handleResponse(res);
+};
+
+
+export const createPatient = async (patientData) => {
+
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/patients`,
+        {
+            method: "POST",
+            headers: {
+                ...getHeaders(),
+                "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify(patientData),
+        }
+    );
+
+    return handleResponse(res);
+};
+
+export const getMe = async () => {
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/auth/session`,
+        {
+            method: "GET",
+            headers: getHeaders(),
+            credentials: "include",
+        }
+    );
+    return handleResponse(res);
+};
+
+export const signInUser = async (email, password) => {
+    // 1. Fetch CSRF token
+    const csrfRes = await fetchWithTimeout(
+        `${API_URL}/api/auth/csrf`,
+        {
+            method: "GET",
+            headers: getHeaders(),
+            credentials: "include",
+        }
+    );
+    const { csrfToken } = await handleResponse(csrfRes);
+
+    // 2. Perform credentials sign in
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/auth/callback/credentials`,
+        {
+            method: "POST",
+            headers: {
+                ...getHeaders(),
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+                email,
+                password,
+                csrfToken,
+                callbackUrl: "/dashboard",
+                json: "true",
+            }),
+            credentials: "include",
+        }
+    );
+
+    return handleResponse(res);
+};
+
+export const signUpUser = async (username, email, password) => {
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/signup`,
+        {
+            method: "POST",
+            headers: {
+                ...getHeaders(),
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ username, email, password }),
             credentials: "include",
         }
     );
