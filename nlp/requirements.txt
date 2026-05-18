@@ -1,23 +1,23 @@
-fastapi==0.115.0
-uvicorn==0.30.6
-python-multipart==0.0.9        # required for file uploads in FastAPI
+fastapi>=0.115.0
+uvicorn>=0.30.6
+python-multipart>=0.0.9        # required for file uploads in FastAPI
 
 # ── OCR ────────────────────────────────────────────────────────
-pytesseract==0.3.13            # Tesseract OCR wrapper
-Pillow==10.4.0                 # image processing
-pymupdf==1.24.9                # PDF to image conversion (fitz)
+pytesseract>=0.3.13            # Tesseract OCR wrapper
+Pillow>=12.0.0                 # image processing (v12+ has pre-compiled Python 3.14 wheels)
+pymupdf>=1.27.0                # PDF to image conversion (v1.27+ has pre-compiled Python 3.14 wheels)
 
 # ── NLP ────────────────────────────────────────────────────────
-spacy==3.7.6                   # core NLP pipeline
-scispacy==0.5.5                # medical NLP extension for spaCy
+spacy>=3.8.0                   # core NLP pipeline (v3.8+ works natively with Python 3.14)
+# scispacy>=0.5.5              # NOTE: scispacy is commented out because it requires spacy<3.8, which cannot compile on Python 3.14 without Visual Studio.
 
 # ── ICD / CPT code lookup ──────────────────────────────────────
-simple-icd-10==2.0.1           # ICD-10 code validation and lookup
+simple-icd-10>=2.0.1           # ICD-10 code validation and lookup
 
 # ── HTTP / utils ───────────────────────────────────────────────
-requests==2.32.3
-python-dotenv==1.0.1
+requests>=2.32.3
+python-dotenv>=1.0.1
 
 # ── Data ───────────────────────────────────────────────────────
-pandas==2.2.2
-numpy==1.26.4
+pandas>=2.2.2
+numpy>=1.26.4

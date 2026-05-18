@@ -1,21 +1,22 @@
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI
+# pyrefly: ignore [missing-import]
+from fastapi.middleware.cors import CORSMiddleware
+
+from routes.process import router as process_router
 
 app = FastAPI()
 
-@app.post("/process-note")
-def process_note(data: dict):
 
-    text = data["text"]
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    # simple logic for now
-    entities = []
-    codes = []
 
-    if "diabetes" in text.lower():
-        entities.append("diabetes")
-        codes.append("E11")
-
-    return {
-        "entities": entities,
-        "codes": codes
-    }
+# ROUTES
+app.include_router(process_router)
