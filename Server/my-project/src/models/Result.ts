@@ -1,22 +1,26 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-
 export interface Result extends Document {
-    RecordId: string;
-    ICD10: string[];
-    CPT: string[];
-    Diagnosis: string[];
-    Procedure: string[];
-    CreatedAt: Date;
+    recordId: mongoose.Schema.Types.ObjectId;
+    icd10: string[];
+    cpt: string[];
+    diagnosis: string[];
+    procedure: string[];
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-const resultSchema: Schema<Result> = new Schema({
-    RecordId: { type: String, required: true },
-    ICD10: { type: [String], required: true },
-    CPT: { type: [String], required: true },
-    Diagnosis: { type: [String], required: true },
-    Procedure: { type: [String], required: true },
-    CreatedAt: { type: Date, required: true },
-});
+const resultSchema: Schema<Result> = new Schema(
+    {
+        recordId: { type: mongoose.Schema.Types.ObjectId, ref: "Record", required: true },
+        icd10: { type: [String], required: true },
+        cpt: { type: [String], required: true },
+        diagnosis: { type: [String], required: true },
+        procedure: { type: [String], required: true },
+    },
+    {
+        timestamps: true, // Automatically manages createdAt and updatedAt
+    }
+);
 
 export default mongoose.models.Result || mongoose.model<Result>("Result", resultSchema);

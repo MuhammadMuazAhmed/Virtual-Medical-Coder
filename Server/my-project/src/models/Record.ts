@@ -1,22 +1,26 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-
 export interface Record extends Document {
-    PatientId: mongoose.Schema.Types.ObjectId;
-    text: string;
-    FileUrl: string;
-    Filetype: string;
-    Status: string;
-    CreatedAt: Date;
+    patientId: mongoose.Schema.Types.ObjectId;
+    clinicalText: string;
+    fileName: string;
+    fileType: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-const recordSchema: Schema<Record> = new Schema({
-    PatientId: { type: mongoose.Schema.Types.ObjectId, ref: "Patient", required: true },
-    text: { type: String, required: true },
-    FileUrl: { type: String, required: true },
-    Filetype: { type: String, required: true },
-    Status: { type: String, required: true },
-    CreatedAt: { type: Date, required: true },
-});
+const recordSchema: Schema<Record> = new Schema(
+    {
+        patientId: { type: mongoose.Schema.Types.ObjectId, ref: "Patient", required: true },
+        clinicalText: { type: String, required: true },
+        fileName: { type: String, required: true },
+        fileType: { type: String, required: true },
+        status: { type: String, required: true },
+    },
+    {
+        timestamps: true, // Automatically manages createdAt and updatedAt
+    }
+);
 
 export default mongoose.models.Record || mongoose.model<Record>("Record", recordSchema);

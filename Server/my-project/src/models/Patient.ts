@@ -1,21 +1,24 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-
 export interface Patient extends Document {
-    PatientId: mongoose.Schema.Types.ObjectId;
     PatientName: string;
     Age: number;
     Gender: string;
-    CreatedAt: Date;
-
+    createdBy?: mongoose.Schema.Types.ObjectId;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-const patientSchema: Schema<Patient> = new Schema({
-    PatientId: { type: mongoose.Schema.Types.ObjectId, ref: "Record", required: true },
-    PatientName: { type: String, required: true },
-    Age: { type: Number, required: true },
-    Gender: { type: String, required: true },
-    CreatedAt: { type: Date, required: true },
-});
+const patientSchema: Schema<Patient> = new Schema(
+    {
+        PatientName: { type: String, required: true },
+        Age: { type: Number, required: true },
+        Gender: { type: String, required: true },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    },
+    {
+        timestamps: true, // Automatically manages createdAt and updatedAt
+    }
+);
 
 export default mongoose.models.Patient || mongoose.model<Patient>("Patient", patientSchema);

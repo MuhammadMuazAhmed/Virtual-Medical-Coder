@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
         const pythonFormData = new FormData();
         pythonFormData.append("file", file);
 
-        const response = await fetch(process.env.NLP_SERVICE_URL + "/process-file", {
+        const nlpBaseUrl = (process.env.NLP_SERVICE_URL || "").trim().replace(/['"]/g, "");
+        const response = await fetch(`${nlpBaseUrl}/process-file`, {
             method: "POST",
             body: pythonFormData,
         });
