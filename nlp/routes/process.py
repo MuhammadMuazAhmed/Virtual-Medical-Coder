@@ -1,4 +1,6 @@
+# pyrefly: ignore [missing-import]
 from fastapi import APIRouter, UploadFile, File
+# pyrefly: ignore [missing-import]
 from fastapi.responses import JSONResponse
 
 from services.ocr_service import extract_text_from_file

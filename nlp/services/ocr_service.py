@@ -1,6 +1,9 @@
+# pyrefly: ignore [missing-import]
 import fitz  # PyMuPDF
 import io
+# pyrefly: ignore [missing-import]
 from PIL import Image
+# pyrefly: ignore [missing-import]
 import pytesseract
 import os
 
