@@ -1,5 +1,5 @@
 """
-mapper.py
+icd_mapper.py
 ─────────────────────────────────────────────────────────────────────────────
 Loads ICD-10 and CPT JSON data and maps entities/text to codes.
 Called by coding_service.py.
@@ -26,8 +26,8 @@ def _load_json(filename: str) -> list[dict]:
         return json.load(f)
 
 
-_ICD10_DATA: list[dict] = _load_json("icd10.json")
-_CPT_DATA:   list[dict] = _load_json("cpt.json")
+_ICD10_DATA: list[dict] = _load_json("icd_codes.json")
+_CPT_DATA:   list[dict] = _load_json("cpt_codes.json")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

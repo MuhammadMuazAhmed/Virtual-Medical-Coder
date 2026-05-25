@@ -1,10 +1,10 @@
 """
 coding_service.py
 ─────────────────────────────────────────────────────────────────────────────
-Thin wrapper — delegates to processors/mapper.py.
+Thin wrapper — delegates to processors/icd_mapper.py.
 Import assign_codes from here throughout the app.
 """
 
-from processors.mapper import assign_codes
+from processors.icd_mapper import assign_codes
 
 __all__ = ["assign_codes"]
