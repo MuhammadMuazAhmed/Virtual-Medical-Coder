@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { signInUser } from "../services/api";
+import { getMe, signInUser } from "../services/api";
 
 export default function SignInPage() {
     const navigate = useNavigate();
@@ -8,6 +8,18 @@ export default function SignInPage() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+
+    useEffect(() => {
+        getMe()
+            .then((res) => {
+                if (res?.user) {
+                    navigate("/dashboard");
+                }
+            })
+            .catch(() => {
+                // not signed in, allow login form
+            });
+    }, [navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

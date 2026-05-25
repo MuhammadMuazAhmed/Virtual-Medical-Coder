@@ -3,12 +3,7 @@ import { useState, useEffect } from "react";
 import { getMe } from "../services/api";
 
 
-const navMain = [
-    { label: "Dashboard", icon: "ti-layout-dashboard", to: "/dashboard" },
-    { label: "Records", icon: "ti-file-text", to: "/records" },
-    { label: "Patients", icon: "ti-users", to: "/patients" },
-    { label: "Upload Record", icon: "ti-upload", to: "/upload" },
-];
+// navMain will be built inside the component so we can conditionally show Admin link
 
 const navTools = [
     { label: "NLP Analyzer", icon: "ti-brain", to: "/nlp" },
@@ -73,15 +68,29 @@ export default function DashboardLayout({ children }) {
             .catch(() => navigate("/signin")); // not logged in → redirect
     }, []);
 
+    const navMain = [
+        { label: "Dashboard", icon: "ti-layout-dashboard", to: "/dashboard" },
+        { label: "Records", icon: "ti-file-text", to: "/records" },
+        // Admin link only visible to admins
+        ...(user?.role === "admin" ? [{ label: "Admin", icon: "ti-shield-check", to: "/admin" }] : []),
+        { label: "Patients", icon: "ti-users", to: "/patients" },
+        { label: "Upload Record", icon: "ti-upload", to: "/upload" },
+    ];
+
     const initials = user?.name
         ?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "U";
 
     const handleSignOut = async () => {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/auth/signout`, {
-            method: "POST",
-            credentials: "include",
-        });
-        navigate("/signin");
+        try {
+            await fetch(`${import.meta.env.VITE_API_URL}/api/auth/signout`, {
+                method: "POST",
+                credentials: "include",
+            });
+        } catch (error) {
+            console.error("Signout failed:", error);
+        } finally {
+            navigate("/signin");
+        }
     };
 
     return (

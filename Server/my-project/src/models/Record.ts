@@ -8,6 +8,7 @@ export interface Record extends Document {
     status: "pending" | "processed";
     approvedAt?: Date;
     approvedBy?: string;
+    wasEdited?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -21,6 +22,7 @@ const recordSchema: Schema<Record> = new Schema(
         status: { type: String, enum: ["pending", "processed"], default: "pending", required: true },
         approvedAt: { type: Date, default: null },
         approvedBy: { type: String, default: null },
+            wasEdited: { type: Boolean, default: false },
     },
     {
         timestamps: true, // Automatically manages createdAt and updatedAt

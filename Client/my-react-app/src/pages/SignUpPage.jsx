@@ -1,15 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { signUpUser } from "../services/api";
+import { getMe, signUpUser } from "../services/api";
 
 export default function SignUpPage() {
     const navigate = useNavigate();
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [adminCode, setAdminCode] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+
+    useEffect(() => {
+        getMe()
+            .then((res) => {
+                if (res?.user) {
+                    navigate("/dashboard");
+                }
+            })
+            .catch(() => {
+                // not signed in yet, allow registration
+            });
+    }, [navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -30,7 +43,7 @@ export default function SignUpPage() {
 
         try {
             setLoading(true);
-            await signUpUser(username.trim(), email.trim(), password);
+            await signUpUser(username.trim(), email.trim(), password, adminCode.trim());
             setSuccess("Registration successful! Redirecting to sign in...");
             setTimeout(() => navigate("/signin"), 1500);
         } catch (err) {
@@ -106,6 +119,22 @@ export default function SignUpPage() {
                             className="w-full text-sm px-3.5 py-2.5 border border-gray-200 rounded-lg bg-white text-gray-800 placeholder-gray-400 outline-none focus:border-gray-400 transition"
                             required
                         />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                            Admin code (optional)
+                        </label>
+                        <input
+                            type="text"
+                            value={adminCode}
+                            onChange={(e) => setAdminCode(e.target.value)}
+                            placeholder="Enter admin signup code to register as admin"
+                            className="w-full text-sm px-3.5 py-2.5 border border-gray-200 rounded-lg bg-white text-gray-800 placeholder-gray-400 outline-none focus:border-gray-400 transition"
+                        />
+                        <p className="text-xs text-gray-400 mt-2">
+                            Leave blank for standard doctor signup. If you are the first user, you will become admin automatically.
+                        </p>
                     </div>
 
                     <button

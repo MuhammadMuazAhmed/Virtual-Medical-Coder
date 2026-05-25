@@ -210,7 +210,7 @@ export const signInUser = async (email, password) => {
     return handleResponse(res);
 };
 
-export const signUpUser = async (username, email, password) => {
+export const signUpUser = async (username, email, password, adminCode = "") => {
     const res = await fetchWithTimeout(
         `${API_URL}/api/signup`,
         {
@@ -219,10 +219,105 @@ export const signUpUser = async (username, email, password) => {
                 ...getHeaders(),
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ username, email, password }),
+            body: JSON.stringify({ username, email, password, adminCode }),
             credentials: "include",
         }
     );
 
+    return handleResponse(res);
+};
+
+// ─── Admin API ──────────────────────────────────────────────────────────────
+export const getAdminStats = async () => {
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/admin/stats`,
+        {
+            method: "GET",
+            headers: getHeaders(),
+            credentials: "include",
+        }
+    );
+    return handleResponse(res);
+};
+
+export const getAdminUsers = async () => {
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/admin/users`,
+        {
+            method: "GET",
+            headers: getHeaders(),
+            credentials: "include",
+        }
+    );
+    return handleResponse(res);
+};
+
+export const updateAdminUser = async (id, body) => {
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/admin/users/${id}`,
+        {
+            method: "PUT",
+            headers: { ...getHeaders(), "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(body),
+        }
+    );
+    return handleResponse(res);
+};
+
+export const deleteAdminUser = async (id) => {
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/admin/users/${id}`,
+        {
+            method: "DELETE",
+            headers: getHeaders(),
+            credentials: "include",
+        }
+    );
+    return handleResponse(res);
+};
+
+export const getAdminCodeStats = async () => {
+    const res = await fetchWithTimeout(`${API_URL}/api/admin/code-stats`, { method: "GET", headers: getHeaders(), credentials: "include" });
+    return handleResponse(res);
+};
+
+export const getAdminIcd10 = async () => {
+    const res = await fetchWithTimeout(`${API_URL}/api/admin/icd10`, { method: "GET", headers: getHeaders(), credentials: "include" });
+    return handleResponse(res);
+};
+
+export const postAdminIcd10 = async (body) => {
+    const res = await fetchWithTimeout(`${API_URL}/api/admin/icd10`, { method: "POST", headers: { ...getHeaders(), "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    return handleResponse(res);
+};
+
+export const putAdminIcd10 = async (code, body) => {
+    const res = await fetchWithTimeout(`${API_URL}/api/admin/icd10/${encodeURIComponent(code)}`, { method: "PUT", headers: { ...getHeaders(), "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    return handleResponse(res);
+};
+
+export const deleteAdminIcd10 = async (code) => {
+    const res = await fetchWithTimeout(`${API_URL}/api/admin/icd10/${encodeURIComponent(code)}`, { method: "DELETE", headers: getHeaders(), credentials: "include" });
+    return handleResponse(res);
+};
+
+export const getAdminCpt = async () => {
+    const res = await fetchWithTimeout(`${API_URL}/api/admin/cpt`, { method: "GET", headers: getHeaders(), credentials: "include" });
+    return handleResponse(res);
+};
+
+export const postAdminCpt = async (body) => {
+    const res = await fetchWithTimeout(`${API_URL}/api/admin/cpt`, { method: "POST", headers: { ...getHeaders(), "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    return handleResponse(res);
+};
+
+export const putAdminCpt = async (code, body) => {
+    const res = await fetchWithTimeout(`${API_URL}/api/admin/cpt/${encodeURIComponent(code)}`, { method: "PUT", headers: { ...getHeaders(), "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    return handleResponse(res);
+};
+
+export const deleteAdminCpt = async (code) => {
+    const res = await fetchWithTimeout(`${API_URL}/api/admin/cpt/${encodeURIComponent(code)}`, { method: "DELETE", headers: getHeaders(), credentials: "include" });
     return handleResponse(res);
 };

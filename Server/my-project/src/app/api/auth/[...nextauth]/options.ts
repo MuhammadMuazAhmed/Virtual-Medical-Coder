@@ -42,11 +42,12 @@ export const authOptions: NextAuthOptions = {
                         throw new Error("Invalid password");
                     }
 
-                    // ✅ Return session user
+                    // ✅ Return session user with role so client can authorize admin UI
                     return {
                         id: user._id.toString(),
                         email: user.Email,
                         name: user.Name,
+                        role: user.role || "doctor",
                     };
 
                 } catch (error) {
@@ -73,13 +74,16 @@ export const authOptions: NextAuthOptions = {
             if (user) {
                 token.id = user.id;
                 token.name = user.name;
+                token.role = user.role;
             }
             return token;
         },
 
         async session({ session, token }) {
             if (session.user) {
+                session.user.id = token.id as string;
                 session.user.name = token.name as string;
+                session.user.role = token.role as string;
             }
             return session;
         }

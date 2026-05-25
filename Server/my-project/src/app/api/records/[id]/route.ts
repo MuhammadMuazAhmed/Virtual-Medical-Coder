@@ -172,8 +172,27 @@ export async function PUT(
             return NextResponse.json({ error: "Record not found" }, { status: 404 });
         }
 
+        // Load original result to detect edits
+        const ResultModel = mongoose.model("Result");
+        const originalResult = await ResultModel.findOne({ recordId: new mongoose.Types.ObjectId(recordId) });
+
+        const arraysEqual = (a = [], b = []) => {
+            if (a.length !== b.length) return false;
+            const sa = [...a].map(String).sort();
+            const sb = [...b].map(String).sort();
+            for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return false;
+            return true;
+        };
+
+        const edited = !(
+            arraysEqual(originalResult?.icd10 || [], icd10) &&
+            arraysEqual(originalResult?.cpt || [], cpt) &&
+            arraysEqual(originalResult?.diagnosis || [], diagnosis) &&
+            arraysEqual(originalResult?.procedure || [], procedure)
+        );
+
         // Update associated result with edited codes
-        const updatedResult = await mongoose.model("Result").findOneAndUpdate(
+        const updatedResult = await ResultModel.findOneAndUpdate(
             { recordId: new mongoose.Types.ObjectId(recordId) },
             {
                 icd10,
@@ -183,6 +202,11 @@ export async function PUT(
             },
             { new: true }
         );
+
+        // Mark record wasEdited if AI codes were modified
+        if (edited) {
+            await Record.findByIdAndUpdate(recordId, { wasEdited: true });
+        }
 
         // Fetch the full record with relationships
         const record = await Record.aggregate([
