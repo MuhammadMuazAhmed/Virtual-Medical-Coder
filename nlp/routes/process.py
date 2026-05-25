@@ -4,6 +4,7 @@ from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
 
 from services.ocr_service import extract_text_from_file
+from services.nlp_service import run_nlp
 from utils.text_cleaner import clean_text
 
 router = APIRouter()
@@ -36,29 +37,17 @@ async def process_file(file: UploadFile = File(...)):
         cleaned_text = clean_text(extracted_text)
 
         # ─────────────────────────────────────────────
-        # TEMP MOCK NLP RESPONSE
-        # (REAL NLP COMES NEXT)
+        # NLP — entity extraction + ICD-10 + CPT
         # ─────────────────────────────────────────────
 
+        nlp_result = run_nlp(cleaned_text)
+
         result = {
-            "text": cleaned_text,
-
-            # Temporary mock values
-            "icd10": [
-                "E11",   # Diabetes
-            ],
-
-            "cpt": [
-                "99213"
-            ],
-
-            "diagnosis": [
-                "Diabetes Mellitus"
-            ],
-
-            "procedure": [
-                "General Consultation"
-            ]
+            "text":      cleaned_text,
+            "icd10":     nlp_result["icd10"],
+            "cpt":       nlp_result["cpt"],
+            "diagnosis": nlp_result["diagnosis"],
+            "procedure": nlp_result["procedure"],
         }
 
         return JSONResponse(
