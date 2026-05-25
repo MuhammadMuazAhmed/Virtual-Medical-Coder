@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getSingleRecord } from "../services/api";
+import { getSingleRecord, deleteRecord } from "../services/api";
 
 export default function RecordDetail() {
     const { id } = useParams();
@@ -9,6 +9,7 @@ export default function RecordDetail() {
     const [record, setRecord] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         const fetchRecord = async () => {
@@ -25,6 +26,21 @@ export default function RecordDetail() {
 
         fetchRecord();
     }, [id]);
+
+    const handleDelete = async () => {
+        const ok = window.confirm("Delete this record? This action cannot be undone.");
+        if (!ok) return;
+        try {
+            setDeleting(true);
+            setError("");
+            await deleteRecord(id);
+            navigate("/records");
+        } catch (err) {
+            setError(err.message || "Failed to delete record");
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -53,12 +69,21 @@ export default function RecordDetail() {
                     Medical Record Details
                 </h1>
 
-                <button
-                    onClick={() => navigate("/")}
-                    className="text-blue-600 hover:underline"
-                >
-                    ← Back
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate("/")}
+                        className="text-blue-600 hover:underline"
+                    >
+                        ← Back
+                    </button>
+                    <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+                    >
+                        {deleting ? "Deleting..." : "Delete"}
+                    </button>
+                </div>
             </div>
 
             {/* Patient Info */}
@@ -140,10 +165,10 @@ export default function RecordDetail() {
                 <span
                     className={`px-4 py-2 rounded-full text-sm font-medium ${record.status === "processed"
                             ? "bg-green-100 text-green-700"
-                            : "bg-yellow-100 text-yellow-700"
+                            : "bg-amber-100 text-amber-700"
                         }`}
                 >
-                    {record.status}
+                    {record.status === "processed" ? "Processed" : "Pending Review"}
                 </span>
             </div>
 

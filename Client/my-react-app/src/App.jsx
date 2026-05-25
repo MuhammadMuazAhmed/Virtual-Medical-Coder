@@ -8,6 +8,8 @@ import RecordDetail from "./pages/RecordDetail";
 import PatientsPage from "./pages/PatientsPage";
 import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
+import PendingReviews from "./pages/PendingReviews";
+import ReviewRecord from "./pages/ReviewRecord";
 
 function Layout({ children }) {
   return <DashboardLayout>{children}</DashboardLayout>;
@@ -29,6 +31,8 @@ export default function App() {
         <Route path="/upload" element={<Layout><UploadPage /></Layout>} />
         <Route path="/patients" element={<Layout><PatientsPage /></Layout>} />
         <Route path="/patients/create" element={<Layout><CreatePatient /></Layout>} />
+        <Route path="/pending" element={<Layout><PendingReviews /></Layout>} />
+        <Route path="/review/:id" element={<Layout><ReviewRecord /></Layout>} />
       </Routes>
     </BrowserRouter>
   );

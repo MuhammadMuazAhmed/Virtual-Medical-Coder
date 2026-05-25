@@ -80,13 +80,13 @@ export async function POST(req: NextRequest) {
             ).end(buffer);
         });
 
-        // ✅ Fix 4: Honest field name
+        // ✅ Fix 4: Save with "pending" status for doctor review
         const record = await Record.create({
             patientId,
             clinicalText: data.text,
             fileName: uploadResult.secure_url,   // Store Cloudinary secure URL here
             fileType: file.type,
-            status: "processed",
+            status: "pending",
         });
 
         const result = await Result.create({

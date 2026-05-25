@@ -29,12 +29,21 @@ const getHeaders = () => {
 };
 
 // ✅ Fix 4: Reusable fetch with timeout
-const fetchWithTimeout = (url, options = {}, timeoutMs = 30000) => {
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 30000) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    return fetch(url, { ...options, signal: controller.signal })
-        .finally(() => clearTimeout(timer));
+    try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        return res;
+    } catch (error) {
+        if (error?.name === "AbortError") {
+            throw new Error("Request timed out. The upload may still be processing on the server; please retry or refresh later.");
+        }
+        throw error;
+    } finally {
+        clearTimeout(timer);
+    }
 };
 
 // ─── Records API ──────────────────────────────────────────────────────────────
@@ -44,7 +53,7 @@ export const uploadRecord = async (file, patientId) => {
     formData.append("file", file);
     formData.append("patientId", patientId);
 
-    // ✅ Fix 4: 60s timeout for uploads (OCR/NLP can be slow)
+    // ✅ Fix 4: 120s timeout for uploads (OCR/NLP can be slow)
     const res = await fetchWithTimeout(
         `${API_URL}/api/records/upload`,
         {
@@ -53,16 +62,17 @@ export const uploadRecord = async (file, patientId) => {
             body: formData,
             credentials: "include",
         },
-        60000
+        120000
     );
 
     return handleResponse(res);  // ✅ Fix 5: removed redundant try/catch + console.error
 };
 
-export const getRecords = async ({ patientId = "", page = 1, limit = 10 } = {}) => {
+export const getRecords = async ({ patientId = "", status = "", page = 1, limit = 10 } = {}) => {
     // ✅ Fix 3: URLSearchParams handles encoding cleanly
     const params = new URLSearchParams({ page, limit });
     if (patientId) params.set("patientId", patientId);
+    if (status) params.set("status", status);
 
     const res = await fetchWithTimeout(
         `${API_URL}/api/records?${params.toString()}`,
@@ -97,6 +107,24 @@ export const deleteRecord = async (id) => {
             headers: getHeaders(),
             credentials: "include",
         }
+    );
+
+    return handleResponse(res);
+};
+
+export const approveRecord = async (id, { icd10, cpt, diagnosis, procedure }) => {
+    const res = await fetchWithTimeout(
+        `${API_URL}/api/records/${id}`,
+        {
+            method: "PUT",
+            headers: {
+                ...getHeaders(),
+                "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({ icd10, cpt, diagnosis, procedure }),
+        },
+        30000
     );
 
     return handleResponse(res);

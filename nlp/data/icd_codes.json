@@ -21,7 +21,7 @@
   },
   {
     "name": "Myocardial Infarction",
-    "synonyms": ["myocardial infarction", "heart attack", "mi", "acute mi", "stemi", "nstemi", "cardiac arrest"],
+    "synonyms": ["myocardial infarction", "acute myocardial infarction", "stemi", "nstemi", "acute coronary syndrome", "acs"],
     "icd10": "I21.9"
   },
   {
@@ -41,7 +41,7 @@
   },
   {
     "name": "Pneumonia",
-    "synonyms": ["pneumonia", "lung infection", "chest infection", "lobar pneumonia", "bronchopneumonia"],
+    "synonyms": ["pneumonia", "lung infection", "lobar pneumonia", "bronchopneumonia", "community acquired pneumonia", "cap", "hospital acquired pneumonia"],
     "icd10": "J18.9"
   },
   {
@@ -156,7 +156,7 @@
   },
   {
     "name": "Obesity",
-    "synonyms": ["obesity", "obese", "morbid obesity", "overweight", "bmi over 30"],
+    "synonyms": ["obesity", "obese", "morbid obesity", "overweight", "class i obesity", "class ii obesity", "class iii obesity"],
     "icd10": "E66.9"
   },
   {
@@ -231,7 +231,7 @@
   },
   {
     "name": "Fever",
-    "synonyms": ["fever", "pyrexia", "febrile", "high temperature", "hyperthermia"],
+    "synonyms": ["pyrexia", "febrile", "hyperthermia", "high-grade fever", "low-grade fever", "fever of unknown origin", "fuo"],
     "icd10": "R50.9"
   },
   {

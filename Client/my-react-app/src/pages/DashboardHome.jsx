@@ -9,28 +9,37 @@ export default function DashboardHome() {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [recRes, patRes] = await Promise.all([
+                getRecords({ page: 1, limit: 5 }),
+                getPatients(),
+            ]);
+            setRecords(recRes.data || []);
+            setPatients(patRes.data || []);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const load = async () => {
-            try {
-                const [recRes, patRes] = await Promise.all([
-                    getRecords({ page: 1, limit: 5 }),
-                    getPatients(),
-                ]);
-                setRecords(recRes.data || []);
-                setPatients(patRes.data || []);
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
+        fetchData();
+    }, []);
+
+    // ✅ Refetch when tab regains focus or component remounts
+    useEffect(() => {
+        const handleFocus = () => fetchData();
+        window.addEventListener("focus", handleFocus);
+        return () => window.removeEventListener("focus", handleFocus);
     }, []);
 
     const stats = {
         total: records.length,
         processed: records.filter((r) => r.status === "processed").length,
-        pending: records.filter((r) => r.status === "pending_review").length,
+        pending: records.filter((r) => r.status === "pending").length,
         patients: patients.length,
     };
 
@@ -58,10 +67,14 @@ export default function DashboardHome() {
                 {[
                     { label: "Total Records", value: stats.total, icon: "ti-file-text", color: "text-gray-900" },
                     { label: "Processed", value: stats.processed, icon: "ti-circle-check", color: "text-green-600" },
-                    { label: "Pending Review", value: stats.pending, icon: "ti-clock", color: "text-amber-600" },
+                    { label: "Pending Review", value: stats.pending, icon: "ti-clock", color: "text-amber-600", action: () => navigate("/pending") },
                     { label: "Patients", value: stats.patients, icon: "ti-users", color: "text-gray-900" },
                 ].map((s) => (
-                    <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-4">
+                    <div 
+                        key={s.label} 
+                        className={`bg-white border border-gray-100 rounded-xl p-4 ${s.action ? "cursor-pointer hover:border-gray-300 hover:shadow-md transition" : ""}`}
+                        onClick={s.action}
+                    >
                         <div className="flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wide mb-2">
                             <i className={`ti ${s.icon} text-sm`} aria-hidden="true" />
                             {s.label}

@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
 
         const { searchParams } = new URL(req.url);
         const patientId = searchParams.get("patientId");
+        const status = searchParams.get("status");
 
         // ✅ Fix: page validation
         const page = Math.max(parseInt(searchParams.get("page") || "1"), 1);
@@ -29,10 +30,17 @@ export async function GET(req: NextRequest) {
 
         const pipeline: any[] = [];
 
+        // ✅ Status filter
+        const matchStage: any = {};
         if (patientId) {
-            pipeline.push({
-                $match: { patientId: new mongoose.Types.ObjectId(patientId) },
-            });
+            matchStage.patientId = new mongoose.Types.ObjectId(patientId);
+        }
+        if (status && ["pending", "approved"].includes(status)) {
+            matchStage.status = status;
+        }
+
+        if (Object.keys(matchStage).length > 0) {
+            pipeline.push({ $match: matchStage });
         }
 
         pipeline.push({
@@ -72,9 +80,7 @@ export async function GET(req: NextRequest) {
 
         // ✅ Fix: total count (before pagination)
         const totalRecords = await Record.aggregate([
-            ...(patientId
-                ? [{ $match: { patientId: new mongoose.Types.ObjectId(patientId) } }]
-                : []),
+            ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
             { $count: "total" },
         ]);
 

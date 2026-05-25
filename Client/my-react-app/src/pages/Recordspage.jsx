@@ -40,7 +40,7 @@ export default function RecordsPage() {
     const stats = {
         total,
         processed: records.filter((r) => r.status === "processed").length,
-        pending: records.filter((r) => r.status === "pending_review").length,
+        pending: records.filter((r) => r.status === "pending").length,
         thisWeek: records.filter((r) => {
             const created = new Date(r.createdAt);
             const weekAgo = new Date();
@@ -82,13 +82,13 @@ export default function RecordsPage() {
 
     const badgeStyle = (status) => {
         if (status === "processed") return "bg-green-100 text-green-700";
-        if (status === "pending_review") return "bg-amber-100 text-amber-700";
+        if (status === "pending") return "bg-amber-100 text-amber-700";
         return "bg-blue-100 text-blue-700";
     };
 
     const badgeLabel = (status) => {
         if (status === "processed") return "Processed";
-        if (status === "pending_review") return "Pending Review";
+        if (status === "pending") return "Pending Review";
         return status;
     };
 
@@ -170,7 +170,7 @@ export default function RecordsPage() {
                     {filteredRecords.map((rec) => (
                         <div
                             key={rec._id}
-                            onClick={() => navigate(`/record/${rec._id}`)}
+                            onClick={() => navigate(`/records/${rec._id}`)}
                             className="cursor-pointer bg-white border border-gray-100 rounded-xl p-5 hover:border-gray-300 transition group"
                         >
                             {/* Top row */}

@@ -5,7 +5,9 @@ export interface Record extends Document {
     clinicalText: string;
     fileName: string;
     fileType: string;
-    status: string;
+    status: "pending" | "processed";
+    approvedAt?: Date;
+    approvedBy?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -16,7 +18,9 @@ const recordSchema: Schema<Record> = new Schema(
         clinicalText: { type: String, required: true },
         fileName: { type: String, required: true },
         fileType: { type: String, required: true },
-        status: { type: String, required: true },
+        status: { type: String, enum: ["pending", "processed"], default: "pending", required: true },
+        approvedAt: { type: Date, default: null },
+        approvedBy: { type: String, default: null },
     },
     {
         timestamps: true, // Automatically manages createdAt and updatedAt
