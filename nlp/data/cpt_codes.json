@@ -1,0 +1,232 @@
+[
+  {
+    "name": "New Patient Office Visit",
+    "synonyms": ["new patient", "initial visit", "first visit", "new visit", "initial consultation", "first consultation"],
+    "cpt": "99202"
+  },
+  {
+    "name": "Established Patient Office Visit",
+    "synonyms": ["follow up", "follow-up", "established patient", "routine visit", "outpatient visit", "office visit", "general consultation", "revisit"],
+    "cpt": "99213"
+  },
+  {
+    "name": "Moderate Complexity Office Visit",
+    "synonyms": ["moderate complexity", "chronic condition management", "ongoing management"],
+    "cpt": "99214"
+  },
+  {
+    "name": "High Complexity Office Visit",
+    "synonyms": ["high complexity", "complex patient", "multiple chronic conditions"],
+    "cpt": "99215"
+  },
+  {
+    "name": "Initial Hospital Care",
+    "synonyms": ["hospital admission", "admitted to hospital", "inpatient admission", "admitted"],
+    "cpt": "99221"
+  },
+  {
+    "name": "Subsequent Hospital Care",
+    "synonyms": ["hospital follow up", "inpatient follow", "subsequent hospital", "ward round"],
+    "cpt": "99232"
+  },
+  {
+    "name": "Critical Care",
+    "synonyms": ["critical care", "icu", "intensive care unit", "critically ill", "intensive care"],
+    "cpt": "99291"
+  },
+  {
+    "name": "Annual Physical Exam",
+    "synonyms": ["annual physical", "preventive visit", "wellness visit", "annual checkup", "annual check-up", "annual exam"],
+    "cpt": "99385"
+  },
+  {
+    "name": "Electrocardiogram",
+    "synonyms": ["ecg", "ekg", "electrocardiogram", "electrocardiograph", "cardiac rhythm", "12-lead", "12 lead ecg"],
+    "cpt": "93000"
+  },
+  {
+    "name": "Echocardiography",
+    "synonyms": ["echocardiogram", "echocardiography", "echo", "cardiac ultrasound", "heart ultrasound"],
+    "cpt": "93306"
+  },
+  {
+    "name": "Cardiovascular Stress Test",
+    "synonyms": ["stress test", "treadmill test", "exercise tolerance test", "cardiac stress", "exercise stress test"],
+    "cpt": "93015"
+  },
+  {
+    "name": "Spirometry",
+    "synonyms": ["spirometry", "pulmonary function", "pft", "lung function test", "fev1", "forced vital capacity", "pulmonary function test"],
+    "cpt": "94010"
+  },
+  {
+    "name": "Nebulizer Treatment",
+    "synonyms": ["nebulizer", "nebulisation", "nebulization", "bronchodilator treatment", "inhaled medication", "nebulizer therapy"],
+    "cpt": "94640"
+  },
+  {
+    "name": "Bronchoscopy",
+    "synonyms": ["bronchoscopy", "bronchoscopic", "airway endoscopy"],
+    "cpt": "31622"
+  },
+  {
+    "name": "Upper GI Endoscopy",
+    "synonyms": ["endoscopy", "upper gi", "esophagogastroduodenoscopy", "egd", "gastroscopy", "upper endoscopy"],
+    "cpt": "43239"
+  },
+  {
+    "name": "Colonoscopy",
+    "synonyms": ["colonoscopy", "colon screening", "lower gi endoscopy", "colon endoscopy"],
+    "cpt": "45378"
+  },
+  {
+    "name": "Chest X-Ray",
+    "synonyms": ["chest x-ray", "chest xray", "chest radiograph", "cxr", "x-ray chest", "chest film"],
+    "cpt": "71046"
+  },
+  {
+    "name": "MRI Brain",
+    "synonyms": ["mri brain", "brain mri", "cerebral mri", "mri head", "head mri"],
+    "cpt": "70553"
+  },
+  {
+    "name": "CT Head",
+    "synonyms": ["ct head", "head ct", "ct scan head", "ct brain", "computed tomography head", "brain ct"],
+    "cpt": "70450"
+  },
+  {
+    "name": "CT Abdomen and Pelvis",
+    "synonyms": ["ct abdomen", "ct pelvis", "abdominal ct", "ct scan abdomen", "ct scan pelvis"],
+    "cpt": "74177"
+  },
+  {
+    "name": "MRI Lumbar Spine",
+    "synonyms": ["mri spine", "mri lumbar", "lumbar mri", "spinal mri", "mri back"],
+    "cpt": "72148"
+  },
+  {
+    "name": "Abdominal Ultrasound",
+    "synonyms": ["abdominal ultrasound", "abdomen ultrasound", "us abdomen", "liver ultrasound", "gallbladder ultrasound", "abdominal sonography"],
+    "cpt": "76700"
+  },
+  {
+    "name": "Obstetric Ultrasound",
+    "synonyms": ["obstetric ultrasound", "prenatal ultrasound", "fetal ultrasound", "pregnancy ultrasound", "antenatal ultrasound"],
+    "cpt": "76805"
+  },
+  {
+    "name": "Complete Blood Count",
+    "synonyms": ["cbc", "complete blood count", "full blood count", "fbc", "blood count", "hemogram"],
+    "cpt": "85025"
+  },
+  {
+    "name": "Comprehensive Metabolic Panel",
+    "synonyms": ["comprehensive metabolic panel", "cmp", "metabolic panel", "liver function test", "lft", "kidney function test", "kft"],
+    "cpt": "80053"
+  },
+  {
+    "name": "Basic Metabolic Panel",
+    "synonyms": ["basic metabolic panel", "bmp", "electrolytes", "renal panel"],
+    "cpt": "80048"
+  },
+  {
+    "name": "Blood Glucose Test",
+    "synonyms": ["blood glucose", "fasting glucose", "glucose level", "fasting blood sugar", "fbs", "random blood sugar", "rbs", "blood sugar"],
+    "cpt": "82947"
+  },
+  {
+    "name": "Hemoglobin A1c",
+    "synonyms": ["hba1c", "hemoglobin a1c", "haemoglobin a1c", "glycated hemoglobin", "glycosylated hemoglobin", "a1c", "hb a1c"],
+    "cpt": "83036"
+  },
+  {
+    "name": "Thyroid Stimulating Hormone",
+    "synonyms": ["tsh", "thyroid stimulating hormone", "thyroid function", "thyroid test", "thyroid function test", "tft"],
+    "cpt": "84443"
+  },
+  {
+    "name": "Prothrombin Time",
+    "synonyms": ["prothrombin time", "pt inr", "inr", "coagulation test", "clotting time", "pt test"],
+    "cpt": "85610"
+  },
+  {
+    "name": "C-Reactive Protein",
+    "synonyms": ["crp", "c-reactive protein", "c reactive protein", "inflammatory marker", "hs-crp"],
+    "cpt": "86140"
+  },
+  {
+    "name": "Influenza Rapid Test",
+    "synonyms": ["influenza test", "flu test", "rapid flu", "influenza rapid", "flu rapid test"],
+    "cpt": "87804"
+  },
+  {
+    "name": "Skin Biopsy",
+    "synonyms": ["skin biopsy", "biopsy skin", "punch biopsy", "shave biopsy", "dermal biopsy"],
+    "cpt": "11100"
+  },
+  {
+    "name": "Wound Repair",
+    "synonyms": ["wound repair", "laceration repair", "suture", "stitches", "wound closure", "wound suturing"],
+    "cpt": "12001"
+  },
+  {
+    "name": "Joint Injection",
+    "synonyms": ["joint injection", "joint aspiration", "intra-articular injection", "knee injection", "shoulder injection", "steroid injection"],
+    "cpt": "20610"
+  },
+  {
+    "name": "Total Knee Replacement",
+    "synonyms": ["knee replacement", "total knee", "tka", "knee arthroplasty", "knee prosthesis"],
+    "cpt": "27447"
+  },
+  {
+    "name": "Total Hip Replacement",
+    "synonyms": ["hip replacement", "total hip", "tha", "hip arthroplasty", "hip prosthesis"],
+    "cpt": "27130"
+  },
+  {
+    "name": "Therapeutic Injection",
+    "synonyms": ["im injection", "intramuscular injection", "subcutaneous injection", "sc injection", "therapeutic injection", "iv injection"],
+    "cpt": "96372"
+  },
+  {
+    "name": "Chemotherapy Infusion",
+    "synonyms": ["chemotherapy", "chemo infusion", "cytotoxic infusion", "cancer treatment infusion", "chemo"],
+    "cpt": "96413"
+  },
+  {
+    "name": "Psychotherapy",
+    "synonyms": ["psychotherapy", "therapy session", "counselling session", "counseling session", "mental health therapy", "talk therapy"],
+    "cpt": "90837"
+  },
+  {
+    "name": "Psychiatric Evaluation",
+    "synonyms": ["psychiatric evaluation", "mental health evaluation", "psychiatric assessment", "psych eval", "mental health assessment"],
+    "cpt": "90791"
+  },
+  {
+    "name": "Physical Therapy",
+    "synonyms": ["physical therapy", "physiotherapy", "therapeutic exercise", "rehabilitation exercise", "rehab exercise", "pt session"],
+    "cpt": "97110"
+  },
+  {
+    "name": "Occupational Therapy",
+    "synonyms": ["occupational therapy", "therapeutic activity", "ot session", "ot"],
+    "cpt": "97530"
+  },
+  {
+    "name": "Incision and Drainage",
+    "synonyms": ["incision and drainage", "i&d", "abscess drainage", "abscess incision"],
+    "cpt": "10060"
+  },
+  {
+    "name": "Hernia Repair",
+    "synonyms": ["hernia repair", "inguinal hernia", "herniorrhaphy", "hernia surgery"],
+    "cpt": "49505"
+  },
+  {
+    "name": "TB Skin Test",
+    "synonyms": ["tb test", "ppd", "tuberculin", "mantoux", "tuberculin skin test"],
+    "cpt": "86580"
+  }
+]

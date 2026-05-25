@@ -1,0 +1,257 @@
+[
+  {
+    "name": "Type 2 Diabetes Mellitus",
+    "synonyms": ["dm", "t2dm", "t2d", "diabetes", "diabetes mellitus", "type 2 diabetes", "high blood sugar", "hyperglycemia", "sugar disease", "niddm"],
+    "icd10": "E11.9"
+  },
+  {
+    "name": "Type 1 Diabetes Mellitus",
+    "synonyms": ["t1dm", "t1d", "type 1 diabetes", "juvenile diabetes", "insulin dependent diabetes", "iddm"],
+    "icd10": "E10.9"
+  },
+  {
+    "name": "Essential Hypertension",
+    "synonyms": ["hypertension", "htn", "high blood pressure", "elevated blood pressure", "bp high"],
+    "icd10": "I10"
+  },
+  {
+    "name": "Heart Failure",
+    "synonyms": ["heart failure", "congestive heart failure", "chf", "cardiac failure", "left heart failure", "right heart failure"],
+    "icd10": "I50.9"
+  },
+  {
+    "name": "Myocardial Infarction",
+    "synonyms": ["myocardial infarction", "heart attack", "mi", "acute mi", "stemi", "nstemi", "cardiac arrest"],
+    "icd10": "I21.9"
+  },
+  {
+    "name": "Atrial Fibrillation",
+    "synonyms": ["atrial fibrillation", "afib", "af", "irregular heartbeat", "arrhythmia"],
+    "icd10": "I48.91"
+  },
+  {
+    "name": "Asthma",
+    "synonyms": ["asthma", "bronchial asthma", "reactive airway disease", "wheezing", "asthmatic"],
+    "icd10": "J45.909"
+  },
+  {
+    "name": "Chronic Obstructive Pulmonary Disease",
+    "synonyms": ["copd", "chronic obstructive pulmonary disease", "emphysema", "chronic bronchitis", "obstructive airway"],
+    "icd10": "J44.9"
+  },
+  {
+    "name": "Pneumonia",
+    "synonyms": ["pneumonia", "lung infection", "chest infection", "lobar pneumonia", "bronchopneumonia"],
+    "icd10": "J18.9"
+  },
+  {
+    "name": "COVID-19",
+    "synonyms": ["covid", "covid-19", "covid 19", "coronavirus", "sars-cov-2", "corona virus"],
+    "icd10": "U07.1"
+  },
+  {
+    "name": "Stroke",
+    "synonyms": ["stroke", "cva", "cerebrovascular accident", "ischemic stroke", "brain attack", "cerebral infarction"],
+    "icd10": "I63.9"
+  },
+  {
+    "name": "Urinary Tract Infection",
+    "synonyms": ["uti", "urinary tract infection", "bladder infection", "cystitis", "urinary infection"],
+    "icd10": "N39.0"
+  },
+  {
+    "name": "Anemia",
+    "synonyms": ["anemia", "anaemia", "low hemoglobin", "low haemoglobin", "iron deficiency anemia", "low hb"],
+    "icd10": "D64.9"
+  },
+  {
+    "name": "Major Depressive Disorder",
+    "synonyms": ["depression", "major depression", "mdd", "depressive disorder", "clinical depression", "depressed"],
+    "icd10": "F32.9"
+  },
+  {
+    "name": "Generalized Anxiety Disorder",
+    "synonyms": ["anxiety", "gad", "generalized anxiety", "anxiety disorder", "anxious", "panic disorder"],
+    "icd10": "F41.1"
+  },
+  {
+    "name": "Hyperlipidemia",
+    "synonyms": ["hyperlipidemia", "hypercholesterolemia", "dyslipidemia", "high cholesterol", "elevated lipids", "high ldl"],
+    "icd10": "E78.5"
+  },
+  {
+    "name": "Hypothyroidism",
+    "synonyms": ["hypothyroidism", "underactive thyroid", "low thyroid", "thyroid deficiency"],
+    "icd10": "E03.9"
+  },
+  {
+    "name": "Hyperthyroidism",
+    "synonyms": ["hyperthyroidism", "overactive thyroid", "graves disease", "thyrotoxicosis"],
+    "icd10": "E05.90"
+  },
+  {
+    "name": "Chronic Kidney Disease",
+    "synonyms": ["ckd", "chronic kidney disease", "renal failure", "chronic renal failure", "kidney failure", "renal insufficiency"],
+    "icd10": "N18.9"
+  },
+  {
+    "name": "Sepsis",
+    "synonyms": ["sepsis", "septicemia", "blood infection", "bacteremia", "septic shock"],
+    "icd10": "A41.9"
+  },
+  {
+    "name": "Rheumatoid Arthritis",
+    "synonyms": ["rheumatoid arthritis", "ra", "inflammatory arthritis", "autoimmune arthritis"],
+    "icd10": "M06.9"
+  },
+  {
+    "name": "Osteoarthritis",
+    "synonyms": ["osteoarthritis", "oa", "degenerative joint disease", "djd", "wear and tear arthritis", "joint degeneration"],
+    "icd10": "M19.90"
+  },
+  {
+    "name": "Osteoporosis",
+    "synonyms": ["osteoporosis", "low bone density", "bone loss", "brittle bones"],
+    "icd10": "M81.0"
+  },
+  {
+    "name": "Epilepsy",
+    "synonyms": ["epilepsy", "seizure disorder", "seizures", "convulsions", "fits"],
+    "icd10": "G40.909"
+  },
+  {
+    "name": "Migraine",
+    "synonyms": ["migraine", "migraine headache", "migraines", "hemiplegic migraine"],
+    "icd10": "G43.909"
+  },
+  {
+    "name": "Parkinson's Disease",
+    "synonyms": ["parkinsons disease", "parkinson's disease", "parkinsonism", "pd"],
+    "icd10": "G20"
+  },
+  {
+    "name": "Alzheimer's Disease",
+    "synonyms": ["alzheimers disease", "alzheimer's disease", "alzheimer", "dementia", "senile dementia"],
+    "icd10": "G30.9"
+  },
+  {
+    "name": "Breast Cancer",
+    "synonyms": ["breast cancer", "carcinoma of breast", "breast carcinoma", "breast malignancy"],
+    "icd10": "C50.919"
+  },
+  {
+    "name": "Lung Cancer",
+    "synonyms": ["lung cancer", "pulmonary carcinoma", "bronchogenic carcinoma", "lung malignancy", "nsclc", "sclc"],
+    "icd10": "C34.90"
+  },
+  {
+    "name": "Colon Cancer",
+    "synonyms": ["colon cancer", "colorectal cancer", "bowel cancer", "rectal cancer", "colorectal carcinoma"],
+    "icd10": "C18.9"
+  },
+  {
+    "name": "Prostate Cancer",
+    "synonyms": ["prostate cancer", "carcinoma of prostate", "prostatic carcinoma"],
+    "icd10": "C61"
+  },
+  {
+    "name": "Obesity",
+    "synonyms": ["obesity", "obese", "morbid obesity", "overweight", "bmi over 30"],
+    "icd10": "E66.9"
+  },
+  {
+    "name": "GERD",
+    "synonyms": ["gerd", "acid reflux", "gastroesophageal reflux", "heartburn", "reflux disease", "gord"],
+    "icd10": "K21.0"
+  },
+  {
+    "name": "Peptic Ulcer",
+    "synonyms": ["peptic ulcer", "gastric ulcer", "duodenal ulcer", "stomach ulcer"],
+    "icd10": "K27.9"
+  },
+  {
+    "name": "Appendicitis",
+    "synonyms": ["appendicitis", "inflamed appendix", "acute appendicitis"],
+    "icd10": "K37"
+  },
+  {
+    "name": "Hepatitis B",
+    "synonyms": ["hepatitis b", "hep b", "hbv", "hepatitis b virus"],
+    "icd10": "B18.1"
+  },
+  {
+    "name": "Hepatitis C",
+    "synonyms": ["hepatitis c", "hep c", "hcv", "hepatitis c virus"],
+    "icd10": "B18.2"
+  },
+  {
+    "name": "Tuberculosis",
+    "synonyms": ["tuberculosis", "tb", "pulmonary tb", "mycobacterium tuberculosis"],
+    "icd10": "A15.9"
+  },
+  {
+    "name": "HIV/AIDS",
+    "synonyms": ["hiv", "aids", "human immunodeficiency virus", "hiv infection", "hiv positive"],
+    "icd10": "B20"
+  },
+  {
+    "name": "Malaria",
+    "synonyms": ["malaria", "plasmodium", "falciparum malaria", "malarial fever"],
+    "icd10": "B54"
+  },
+  {
+    "name": "Typhoid Fever",
+    "synonyms": ["typhoid", "typhoid fever", "salmonella typhi", "enteric fever"],
+    "icd10": "A01.0"
+  },
+  {
+    "name": "Low Back Pain",
+    "synonyms": ["low back pain", "back pain", "lbp", "lumbar pain", "lumbago", "lumbar backache"],
+    "icd10": "M54.5"
+  },
+  {
+    "name": "Neck Pain",
+    "synonyms": ["neck pain", "cervical pain", "cervicalgia", "stiff neck"],
+    "icd10": "M54.2"
+  },
+  {
+    "name": "Chest Pain",
+    "synonyms": ["chest pain", "chest tightness", "thoracic pain", "chest discomfort"],
+    "icd10": "R07.9"
+  },
+  {
+    "name": "Dyspnea",
+    "synonyms": ["dyspnea", "shortness of breath", "sob", "breathlessness", "difficulty breathing"],
+    "icd10": "R06.09"
+  },
+  {
+    "name": "Headache",
+    "synonyms": ["headache", "cephalalgia", "head pain", "cephalgia"],
+    "icd10": "R51.9"
+  },
+  {
+    "name": "Fever",
+    "synonyms": ["fever", "pyrexia", "febrile", "high temperature", "hyperthermia"],
+    "icd10": "R50.9"
+  },
+  {
+    "name": "Fatigue",
+    "synonyms": ["fatigue", "tiredness", "exhaustion", "lethargy", "weakness", "malaise"],
+    "icd10": "R53.83"
+  },
+  {
+    "name": "Dengue Fever",
+    "synonyms": ["dengue", "dengue fever", "dengue hemorrhagic fever", "breakbone fever"],
+    "icd10": "A97.9"
+  },
+  {
+    "name": "Fracture",
+    "synonyms": ["fracture", "broken bone", "bone fracture", "stress fracture"],
+    "icd10": "M84.40XA"
+  },
+  {
+    "name": "General Examination",
+    "synonyms": ["general examination", "routine checkup", "no complaints", "healthy", "normal examination"],
+    "icd10": "Z00.00"
+  }
+]
