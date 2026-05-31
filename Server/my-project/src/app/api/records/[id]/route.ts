@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import connectDB from "@/lib/dbConnect";
 import Record from "@/models/Record";
+import Result from "@/models/Result";
 
 export async function GET(
     req: NextRequest,
@@ -127,7 +128,7 @@ export async function DELETE(
         }
 
         // 🔥 ALSO delete associated result
-        await mongoose.model("Result").deleteMany({
+        await Result.deleteMany({
             recordId: deletedRecord._id,
         });
 
@@ -192,7 +193,7 @@ export async function PUT(
                 approvedAt: new Date(),
                 approvedBy: session.user.name || session.user.email,
             },
-            { new: true }
+            { returnDocument: "after" }
         );
 
         if (!updatedRecord) {
@@ -200,8 +201,7 @@ export async function PUT(
         }
 
         // Load original result to detect edits
-        const ResultModel = mongoose.model("Result");
-        const originalResult = await ResultModel.findOne({ recordId: new mongoose.Types.ObjectId(recordId) });
+        const originalResult = await Result.findOne({ recordId: new mongoose.Types.ObjectId(recordId) });
 
         const arraysEqual = (a = [], b = []) => {
             if (a.length !== b.length) return false;
@@ -219,7 +219,7 @@ export async function PUT(
         );
 
         // Update associated result with edited codes
-        const updatedResult = await ResultModel.findOneAndUpdate(
+        const updatedResult = await Result.findOneAndUpdate(
             { recordId: new mongoose.Types.ObjectId(recordId) },
             {
                 icd10,
@@ -227,7 +227,7 @@ export async function PUT(
                 diagnosis,
                 procedure,
             },
-            { new: true }
+            { returnDocument: "after" }
         );
 
         // Mark record wasEdited if AI codes were modified
