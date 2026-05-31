@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import connectDB from "@/lib/dbConnect";
-import mongoose from "mongoose";
+import Result from "@/models/Result";
+import Record from "@/models/Record";
 
 export async function GET(req: NextRequest) {
     try {
@@ -12,9 +13,6 @@ export async function GET(req: NextRequest) {
         }
 
         await connectDB();
-
-        const Result = mongoose.model("Result");
-        const Record = mongoose.model("Record");
 
         // Top ICD-10 codes across processed records
         const icdPipeline = [

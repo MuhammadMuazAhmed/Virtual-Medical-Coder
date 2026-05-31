@@ -30,8 +30,11 @@ export async function GET(req: NextRequest) {
 
         const pipeline: any[] = [];
 
-        // ✅ Status filter
+        // ✅ Status filter + user isolation (non-admin users only see their own records)
         const matchStage: any = {};
+        if (session.user.role !== "admin") {
+            matchStage.createdBy = new mongoose.Types.ObjectId(session.user.id);
+        }
         if (patientId) {
             matchStage.patientId = new mongoose.Types.ObjectId(patientId);
         }

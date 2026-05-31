@@ -21,10 +21,14 @@ export async function GET(req: NextRequest) {
         const limit = parseInt(searchParams.get("limit") || "20");
         const search = searchParams.get("search") || "";
 
-        // ✅ Fix 5: Search by name
-        const query = search
-            ? { PatientName: { $regex: search, $options: "i" } }
-            : {};
+        // ✅ Fix 5: Search by name + user isolation (non-admin users only see their own patients)
+        const query: any = {};
+        if (session.user.role !== "admin") {
+            query.createdBy = session.user.id;
+        }
+        if (search) {
+            query.PatientName = { $regex: search, $options: "i" };
+        }
 
         const [patients, total] = await Promise.all([
             Patient.find(query)
@@ -90,11 +94,12 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ✅ Fix 3: Duplicate check — same name + age + gender
+        // ✅ Fix 3: Duplicate check — same name + age + gender FOR THIS USER
         const existing = await Patient.findOne({
             PatientName: PatientName.trim(),
             Age: ageNum,
             Gender,
+            createdBy: session.user.id,
         });
 
         if (existing) {

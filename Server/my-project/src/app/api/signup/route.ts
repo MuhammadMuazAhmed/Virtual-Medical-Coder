@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
         }
 
         // Check if user already exists
-        const existingUser = await User.findOne({ Email: email.toLowerCase() });
+        const emailLower = email.toLowerCase();
+        const existingUser = await User.findOne({ Email: emailLower });
         if (existingUser) {
             return NextResponse.json(
                 { error: "User with this email already exists" },
@@ -50,10 +51,10 @@ export async function POST(req: NextRequest) {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create user
+        // Create user with schema field names (Email, not email)
         const newUser = await User.create({
             Name: username,
-            Email: email.toLowerCase(),
+            Email: emailLower,
             Password: hashedPassword,
             CreatedAt: new Date(),
             role,

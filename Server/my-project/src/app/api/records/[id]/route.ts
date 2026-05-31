@@ -62,6 +62,10 @@ export async function GET(
             return NextResponse.json({ error: "Record not found" }, { status: 404 });
         }
 
+        // ✅ Check ownership: only owner or admin can view
+        if (session.user.role !== "admin" && record[0].createdBy?.toString() !== session.user.id) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
         return NextResponse.json({
             success: true,
             data: record[0],
@@ -97,6 +101,19 @@ export async function DELETE(
                 { error: "Invalid record ID" },
                 { status: 400 }
             );
+        }
+
+        // ✅ Check ownership: only owner or admin can delete
+        const recordToDelete = await Record.findById(recordId);
+        if (!recordToDelete) {
+            return NextResponse.json(
+                { error: "Record not found" },
+                { status: 404 }
+            );
+        }
+
+        if (session.user.role !== "admin" && recordToDelete.createdBy?.toString() !== session.user.id) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         // 🗑️ Delete record
@@ -144,6 +161,16 @@ export async function PUT(
 
         if (!mongoose.Types.ObjectId.isValid(recordId)) {
             return NextResponse.json({ error: "Invalid record ID" }, { status: 400 });
+        }
+
+        // ✅ Check ownership: only owner or admin can update
+        const recordToUpdate = await Record.findById(recordId);
+        if (!recordToUpdate) {
+            return NextResponse.json({ error: "Record not found" }, { status: 404 });
+        }
+
+        if (session.user.role !== "admin" && recordToUpdate.createdBy?.toString() !== session.user.id) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const body = await req.json();

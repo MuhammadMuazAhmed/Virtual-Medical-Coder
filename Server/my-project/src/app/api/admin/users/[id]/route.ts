@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         return NextResponse.json({ success: true, data: {
             id: updated._id,
             name: updated.Name,
-            email: updated.Email,
+            email: updated.email || updated.Email,
             role: updated.role,
             isActive: updated.isActive,
             createdAt: updated.CreatedAt,

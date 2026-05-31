@@ -80,9 +80,10 @@ export async function POST(req: NextRequest) {
             ).end(buffer);
         });
 
-        // ✅ Fix 4: Save with "pending" status for doctor review
+        // ✅ Fix 4: Save with "pending" status for doctor review, track who uploaded it
         const record = await Record.create({
             patientId,
+            createdBy: session.user.id,
             clinicalText: data.text,
             fileName: uploadResult.secure_url,   // Store Cloudinary secure URL here
             fileType: file.type,

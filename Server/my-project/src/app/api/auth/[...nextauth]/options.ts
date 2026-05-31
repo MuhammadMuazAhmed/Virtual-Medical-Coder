@@ -25,11 +25,15 @@ export const authOptions: NextAuthOptions = {
                 try {
                     // 🔍 Find user by email
                     const user = await User.findOne({
-                        Email: credentials?.email,
+                        $or: [{ Email: credentials?.email }, { email: credentials?.email }],
                     });
 
                     if (!user) {
                         throw new Error("User not found");
+                    }
+
+                    if (user.isActive === false) {
+                        throw new Error("Account is deactivated");
                     }
 
                     // 🔐 Compare hashed password
@@ -45,7 +49,7 @@ export const authOptions: NextAuthOptions = {
                     // ✅ Return session user with role so client can authorize admin UI
                     return {
                         id: user._id.toString(),
-                        email: user.Email,
+                        email: user.email || user.Email,
                         name: user.Name,
                         role: user.role || "doctor",
                     };

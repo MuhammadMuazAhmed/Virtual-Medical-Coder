@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
         const output = users.map((u) => ({
             id: u._id,
             name: u.Name,
-            email: u.Email,
+            email: u.email || u.Email,
             role: u.role || "doctor",
             isActive: u.isActive !== false,
             createdAt: u.CreatedAt,

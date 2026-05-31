@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { getAdminStats, getAdminCodeStats } from "../services/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -32,8 +33,19 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-blue-50 p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-blue-900">Admin Dashboard</h1>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-blue-900">Admin Dashboard</h1>
+                    <p className="mt-1 text-sm text-gray-600">Manage doctors, roles, and account activity from here.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <Link to="/admin/users" className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
+                        User Management
+                    </Link>
+                    <Link to="/admin/codes" className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 transition">
+                        Code Management
+                    </Link>
+                </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
