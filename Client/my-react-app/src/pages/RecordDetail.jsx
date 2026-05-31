@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getSingleRecord, deleteRecord } from "../services/api";
+import { getSingleRecord, deleteRecord, approveRecord } from "../services/api";
 
 export default function RecordDetail() {
     const { id } = useParams();
@@ -10,6 +10,15 @@ export default function RecordDetail() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [deleting, setDeleting] = useState(false);
+    const [approving, setApproving] = useState(false);
+    const [success, setSuccess] = useState("");
+
+    // Editable codes
+    const [icd10Codes, setIcd10Codes] = useState([]);
+    const [cptCodes, setCptCodes] = useState([]);
+    const [newIcd10, setNewIcd10] = useState("");
+    const [newCpt, setNewCpt] = useState("");
+    const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
         const fetchRecord = async () => {
@@ -17,6 +26,8 @@ export default function RecordDetail() {
                 setLoading(true);
                 const res = await getSingleRecord(id);
                 setRecord(res.data);
+                setIcd10Codes(res.data.result?.icd10 || []);
+                setCptCodes(res.data.result?.cpt || []);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -26,6 +37,55 @@ export default function RecordDetail() {
 
         fetchRecord();
     }, [id]);
+
+    const addIcd10 = () => {
+        if (newIcd10.trim() && !icd10Codes.includes(newIcd10.toUpperCase())) {
+            setIcd10Codes([...icd10Codes, newIcd10.toUpperCase()]);
+            setNewIcd10("");
+            setIsEditing(true);
+        }
+    };
+
+    const removeIcd10 = (code) => {
+        setIcd10Codes(icd10Codes.filter((c) => c !== code));
+        setIsEditing(true);
+    };
+
+    const addCpt = () => {
+        if (newCpt.trim() && !cptCodes.includes(newCpt.toUpperCase())) {
+            setCptCodes([...cptCodes, newCpt.toUpperCase()]);
+            setNewCpt("");
+            setIsEditing(true);
+        }
+    };
+
+    const removeCpt = (code) => {
+        setCptCodes(cptCodes.filter((c) => c !== code));
+        setIsEditing(true);
+    };
+
+    const handleApprove = async () => {
+        try {
+            setApproving(true);
+            setError("");
+            setSuccess("");
+
+            await approveRecord(id, {
+                icd10: icd10Codes,
+                cpt: cptCodes,
+                diagnosis: record.result?.diagnosis || [],
+                procedure: record.result?.procedure || [],
+            });
+
+            setSuccess("Record approved successfully!");
+            setIsEditing(false);
+            setTimeout(() => navigate("/pending"), 1200);
+        } catch (err) {
+            setError(err.message || "Failed to approve record");
+        } finally {
+            setApproving(false);
+        }
+    };
 
     const handleDelete = async () => {
         const ok = window.confirm("Delete this record? This action cannot be undone.");
@@ -121,20 +181,40 @@ export default function RecordDetail() {
                         ICD-10 Codes
                     </h3>
 
-                    {record.result?.icd10?.length ? (
-                        <div className="flex flex-wrap gap-2">
-                            {record.result.icd10.map((code) => (
-                                <span
-                                    key={code}
-                                    className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm"
-                                >
+                    {icd10Codes.length ? (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {icd10Codes.map((code) => (
+                                <div key={code} className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 group">
                                     {code}
-                                </span>
+                                    <button
+                                        onClick={() => removeIcd10(code)}
+                                        className="opacity-0 group-hover:opacity-100 transition text-blue-700 hover:text-blue-900 font-bold"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     ) : (
-                        <p className="text-gray-400 text-sm">No ICD codes found</p>
+                        <p className="text-gray-400 text-sm mb-4">No ICD codes found</p>
                     )}
+
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="e.g., E11.9"
+                            value={newIcd10}
+                            onChange={(e) => setNewIcd10(e.target.value)}
+                            onKeyPress={(e) => e.key === "Enter" && addIcd10()}
+                            className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg outline-none focus:border-blue-400 transition"
+                        />
+                        <button
+                            onClick={addIcd10}
+                            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
+                        >
+                            Add
+                        </button>
+                    </div>
                 </div>
 
                 {/* CPT Codes */}
@@ -143,20 +223,40 @@ export default function RecordDetail() {
                         CPT Codes
                     </h3>
 
-                    {record.result?.cpt?.length ? (
-                        <div className="flex flex-wrap gap-2">
-                            {record.result.cpt.map((code) => (
-                                <span
-                                    key={code}
-                                    className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm"
-                                >
+                    {cptCodes.length ? (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {cptCodes.map((code) => (
+                                <div key={code} className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 group">
                                     {code}
-                                </span>
+                                    <button
+                                        onClick={() => removeCpt(code)}
+                                        className="opacity-0 group-hover:opacity-100 transition text-green-700 hover:text-green-900 font-bold"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     ) : (
-                        <p className="text-gray-400 text-sm">No CPT codes found</p>
+                        <p className="text-gray-400 text-sm mb-4">No CPT codes found</p>
                     )}
+
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="e.g., 99213"
+                            value={newCpt}
+                            onChange={(e) => setNewCpt(e.target.value)}
+                            onKeyPress={(e) => e.key === "Enter" && addCpt()}
+                            className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg outline-none focus:border-blue-400 transition"
+                        />
+                        <button
+                            onClick={addCpt}
+                            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
+                        >
+                            Add
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -170,6 +270,28 @@ export default function RecordDetail() {
                 >
                     {record.status === "processed" ? "Processed" : "Pending Review"}
                 </span>
+            </div>
+
+            {success && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg">
+                    {success}
+                </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                    onClick={handleApprove}
+                    disabled={approving || deleting}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                >
+                    {approving ? "Approving..." : "Approve Record"}
+                </button>
+                <button
+                    onClick={() => navigate("/pending")}
+                    className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition"
+                >
+                    Back to Pending
+                </button>
             </div>
 
         </div>

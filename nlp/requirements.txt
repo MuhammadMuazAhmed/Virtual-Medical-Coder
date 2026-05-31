@@ -21,3 +21,7 @@ python-dotenv>=1.0.1
 # ── Data ───────────────────────────────────────────────────────
 pandas>=2.2.2
 numpy>=1.26.4
+
+
+pythonmongo                # MongoDB driver for Python (v4.3+ has pre-compiled Python 3.14 wheels)
+python-dotenv             # For loading environment variables from .env files

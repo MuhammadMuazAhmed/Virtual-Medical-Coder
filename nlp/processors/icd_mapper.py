@@ -1,72 +1,158 @@
 """
 icd_mapper.py
 ─────────────────────────────────────────────────────────────────────────────
-Loads ICD-10 and CPT JSON data and maps entities/text to codes.
+Maps NLP entities to ICD-10 and CPT codes by querying MongoDB Atlas.
 Called by coding_service.py.
+
+Collections used:
+    test.icd10_codes  — imported via import_icd10.py
+    test.cpt_codes    — imported via import_cpt.py
+
+Each document structure:
+    { code, description, synonyms: [] }
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import os
+from functools import lru_cache
+
+from dotenv import load_dotenv
+from pymongo import MongoClient
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# DATA LOADING
+# DB CONNECTION  (one client, cached for process lifetime)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+@lru_cache(maxsize=1)
+def _get_db():
+    uri    = os.getenv("MONGODB_URI")
+    client = MongoClient(uri)
+    return client["test"]
 
 
-def _load_json(filename: str) -> list[dict]:
-    path = os.path.join(_DATA_DIR, filename)
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+def _icd10_col():
+    return _get_db()["icd10_codes"]
 
 
-_ICD10_DATA: list[dict] = _load_json("icd_codes.json")
-_CPT_DATA:   list[dict] = _load_json("cpt_codes.json")
+def _cpt_col():
+    return _get_db()["cpt_codes"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MATCHING LOGIC
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _match_entity(entity_text: str, dataset: list[dict]) -> dict | None:
+def _match_icd10(entity_text: str) -> dict | None:
     """
-    Try to match entity_text against a dataset entry.
-
-    Match priority:
-      1. Exact match on name
-      2. Exact match on any synonym
-      3. Substring match (entity inside synonym or synonym inside entity)
+    Match entity text to an ICD-10 code using 3-step lookup:
+      1. Exact code match       (e.g. entity is already "E11.9")
+      2. Exact synonym match    (entity in synonyms array)
+      3. Full-text search       (MongoDB text index on description + synonyms)
     """
-    text = entity_text.lower().strip()
+    col  = _icd10_col()
+    text = entity_text.strip()
 
-    exact_name:    dict | None = None
-    exact_synonym: dict | None = None
-    substring:     dict | None = None
+    # 1. Exact code match
+    result = col.find_one({"code": text.upper()})
+    if result:
+        return result
 
-    for entry in dataset:
-        name     = entry["name"].lower()
-        synonyms = [s.lower() for s in entry.get("synonyms", [])]
+    # 2. Synonym match (case-insensitive)
+    result = col.find_one({"synonyms": {"$regex": f"^{text}$", "$options": "i"}})
+    if result:
+        return result
 
-        # 1. Exact name match
-        if text == name:
-            exact_name = entry
-            break
+    # 3. Full-text search on description
+    results = list(
+        col.find(
+            {"$text": {"$search": text}},
+            {"score": {"$meta": "textScore"}, "code": 1, "description": 1, "synonyms": 1}
+        )
+        .sort([("score", {"$meta": "textScore"})])
+        .limit(1)
+    )
+    if results:
+        return results[0]
 
-        # 2. Exact synonym match
-        if text in synonyms:
-            exact_synonym = exact_synonym or entry
+    return None
 
-        # 3. Substring match
-        elif any(text in s or s in text for s in synonyms) or text in name or name in text:
-            substring = substring or entry
 
-    return exact_name or exact_synonym or substring
+def _match_cpt(keyword: str) -> dict | None:
+    """
+    Match a keyword to a CPT/HCPCS code using 3-step lookup:
+      1. Exact code match
+      2. Exact synonym match
+      3. Full-text search on description
+    """
+    col  = _cpt_col()
+    text = keyword.strip()
+
+    # 1. Exact code match
+    result = col.find_one({"code": text.upper()})
+    if result:
+        return result
+
+    # 2. Synonym match
+    result = col.find_one({"synonyms": {"$regex": f"^{text}$", "$options": "i"}})
+    if result:
+        return result
+
+    # 3. Full-text search
+    results = list(
+        col.find(
+            {"$text": {"$search": text}},
+            {"score": {"$meta": "textScore"}, "code": 1, "description": 1, "synonyms": 1}
+        )
+        .sort([("score", {"$meta": "textScore"})])
+        .limit(1)
+    )
+    if results:
+        return results[0]
+
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CPT KEYWORD EXTRACTION FROM TEXT
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Procedure-related keywords to scan for in the full clinical text.
+# These are terms that rarely appear as NER entities but indicate procedures.
+CPT_SCAN_KEYWORDS = [
+    "ecg", "ekg", "electrocardiogram",
+    "chest x-ray", "chest xray", "cxr",
+    "mri", "ct scan", "ultrasound", "sonography",
+    "spirometry", "pulmonary function test", "pft",
+    "colonoscopy", "endoscopy", "bronchoscopy",
+    "complete blood count", "cbc", "fbc",
+    "comprehensive metabolic panel", "cmp",
+    "basic metabolic panel", "bmp",
+    "hba1c", "hemoglobin a1c",
+    "fasting blood sugar", "fbs", "blood glucose",
+    "tsh", "thyroid function",
+    "lipid profile", "cholesterol panel",
+    "liver function test", "lft",
+    "kidney function test", "kft",
+    "urinalysis", "urine culture",
+    "blood culture",
+    "inr", "prothrombin time",
+    "crp", "c-reactive protein",
+    "follow up", "follow-up", "office visit",
+    "hospital admission", "admitted",
+    "physical therapy", "physiotherapy",
+    "psychotherapy", "counselling",
+    "nebulizer", "inhaler",
+    "vaccination", "immunization",
+    "biopsy", "wound repair", "suture",
+    "joint injection", "steroid injection",
+    "chemotherapy", "dialysis",
+]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -75,12 +161,12 @@ def _match_entity(entity_text: str, dataset: list[dict]) -> dict | None:
 
 def assign_codes(entities: list[dict], full_text: str = "") -> dict:
     """
-    Map NLP entities to ICD-10 and CPT codes.
+    Map NLP entities to ICD-10 and CPT codes using MongoDB lookup.
 
     Args:
         entities:  Output of extract_entities()
                    e.g. [{"text": "Diabetes Mellitus", "label": "DISEASE"}, ...]
-        full_text: Cleaned text — used for CPT keyword matching.
+        full_text: Cleaned clinical text — scanned for CPT procedure keywords.
 
     Returns:
         {
@@ -107,42 +193,41 @@ def assign_codes(entities: list[dict], full_text: str = "") -> dict:
         if label not in ("DISEASE", "CHEMICAL", ""):
             continue
 
-        match = _match_entity(text, _ICD10_DATA)
+        match = _match_icd10(text)
         if match:
-            code = match["icd10"]
+            code = match["code"]
             if code not in seen_icd10:
                 seen_icd10.add(code)
                 icd10_codes.append(code)
-                diagnoses.append(match["name"])
+                diagnoses.append(match["description"])
         else:
             logger.debug("No ICD-10 match for entity: '%s'", text)
 
     # ── CPT: scan full text for procedure keywords ────────────────────────────
     text_lower = full_text.lower()
 
-    for entry in _CPT_DATA:
-        code     = entry["cpt"]
-        synonyms = [s.lower() for s in entry.get("synonyms", [])]
-        name     = entry["name"].lower()
-
-        if code in seen_cpt:
+    for keyword in CPT_SCAN_KEYWORDS:
+        if keyword not in text_lower:
             continue
 
-        if name in text_lower or any(syn in text_lower for syn in synonyms):
-            seen_cpt.add(code)
-            cpt_codes.append(code)
-            procedures.append(entry["name"])
+        match = _match_cpt(keyword)
+        if match:
+            code = match["code"]
+            if code not in seen_cpt:
+                seen_cpt.add(code)
+                cpt_codes.append(code)
+                procedures.append(match["description"])
 
     # ── Fallbacks ─────────────────────────────────────────────────────────────
     if not icd10_codes:
         logger.warning("No ICD-10 codes matched — using fallback Z00.00")
         icd10_codes = ["Z00.00"]
-        diagnoses   = ["General Examination"]
+        diagnoses   = ["Encounter for general examination without abnormal findings"]
 
     if not cpt_codes:
         logger.warning("No CPT codes matched — using fallback 99213")
         cpt_codes  = ["99213"]
-        procedures = ["Established Patient Office Visit"]
+        procedures = ["Office or other outpatient visit, established patient"]
 
     return {
         "icd10":     icd10_codes,
