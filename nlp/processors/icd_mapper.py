@@ -1,32 +1,34 @@
 """
 icd_mapper.py
 ─────────────────────────────────────────────────────────────────────────────
-Maps NLP entities to ICD-10 and CPT codes by querying MongoDB Atlas.
-Called by coding_service.py.
+Maps NLP entities to ICD-10 and CPT codes using a 3-tier lookup:
 
-Collections used:
-    test.icd10_codes  — imported via import_icd10.py
-    test.cpt_codes    — imported via import_cpt.py
+  Tier 1 — Exact code or synonym match    (MongoDB query)
+  Tier 2 — Full-text search               (MongoDB text index)
+  Tier 3 — Semantic similarity            (sentence-transformers)
 
-Each document structure:
-    { code, description, synonyms: [] }
+Also includes a rule-based fallback for conditions scispaCy consistently misses.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
 from functools import lru_cache
 
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
-load_dotenv()
+from processors.semantic_matcher import find_best_icd10, find_best_cpt
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 logger = logging.getLogger(__name__)
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# DB CONNECTION  (one client, cached for process lifetime)
+# DB CONNECTION
 # ─────────────────────────────────────────────────────────────────────────────
 
 @lru_cache(maxsize=1)
@@ -35,40 +37,146 @@ def _get_db():
     client = MongoClient(uri)
     return client["test"]
 
-
 def _icd10_col():
     return _get_db()["icd10_codes"]
-
 
 def _cpt_col():
     return _get_db()["cpt_codes"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MATCHING LOGIC
+# RULE-BASED FALLBACK
+# Conditions scispaCy consistently misses — scan full text directly
+# Format: { "keyword": "ICD-10 code" }
+# ─────────────────────────────────────────────────────────────────────────────
+
+NER_FALLBACK_RULES: dict[str, str] = {
+    # Hypertension
+    "hypertension":              "I10",
+    "essential hypertension":    "I10",
+    "high blood pressure":       "I10",
+
+    # Diabetes
+    "type 2 diabetes":           "E119",
+    "type 2 diabetes mellitus":  "E119",
+    "t2dm":                      "E119",
+    "poorly controlled diabetes":"E119",
+    "uncontrolled diabetes":     "E119",
+    "type 1 diabetes":           "E109",
+    "t1dm":                      "E109",
+
+    # Lipids
+    "hyperlipidemia":            "E785",
+    "hyperlipidaemia":           "E785",
+    "dyslipidemia":              "E785",
+    "high cholesterol":          "E785",
+
+    # Obesity
+    "obesity":                   "E669",
+    "obese":                     "E669",
+    "morbid obesity":            "E669",
+
+    # Cardiac
+    "atrial fibrillation":       "I4891",
+    "afib":                      "I4891",
+    "heart failure":             "I509",
+    "congestive heart failure":  "I509",
+    "coronary artery disease":   "I2510",
+
+    # Respiratory
+    "copd":                      "J449",
+    "chronic obstructive pulmonary disease": "J449",
+    "asthma":                    "J45909",
+
+    # Kidney
+    "chronic kidney disease":    "N189",
+    "ckd":                       "N189",
+
+    # Thyroid
+    "hypothyroidism":            "E039",
+    "hyperthyroidism":           "E0590",
+
+    # Mental health
+    "depression":                "F329",
+    "anxiety":                   "F411",
+
+    # GI
+    "gerd":                      "K219",
+    "acid reflux":               "K219",
+
+    # Infectious
+    "tuberculosis":              "A159",
+    "hiv":                       "B20",
+}
+
+# Negation words — if any of these appear before a keyword in the same
+# sentence, skip that keyword
+NEGATION_WORDS = [
+    "no ", "not ", "denies ", "deny ", "denied ", "without ",
+    "absence of ", "absent ", "negative for ", "no history of ",
+    "no known ", "ruled out ", "rule out "
+]
+
+
+def _apply_fallback_rules(text: str, seen_codes: set) -> tuple[list, list]:
+    """
+    Scan full text for conditions scispaCy misses.
+    Respects simple negation — skips keyword if preceded by negation word
+    in the same sentence.
+    """
+    text_lower  = text.lower()
+    sentences   = re.split(r'[.\n]', text_lower)
+
+    icd10_codes: list[str] = []
+    diagnoses:   list[str] = []
+
+    for keyword, code in NER_FALLBACK_RULES.items():
+        if code in seen_codes:
+            continue
+
+        for sentence in sentences:
+            if keyword not in sentence:
+                continue
+
+            # Check negation in this sentence
+            negated = any(
+                neg in sentence and sentence.index(neg) < sentence.index(keyword)
+                for neg in NEGATION_WORDS
+                if neg in sentence and keyword in sentence
+            )
+
+            if not negated:
+                seen_codes.add(code)
+                icd10_codes.append(code)
+                # Get description from MongoDB
+                doc = _icd10_col().find_one({"code": code}, {"description": 1})
+                diagnoses.append(doc["description"] if doc else keyword.title())
+                break
+
+    return icd10_codes, diagnoses
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ICD-10 MATCHING  (3-tier)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _match_icd10(entity_text: str) -> dict | None:
-    """
-    Match entity text to an ICD-10 code using 3-step lookup:
-      1. Exact code match       (e.g. entity is already "E11.9")
-      2. Exact synonym match    (entity in synonyms array)
-      3. Full-text search       (MongoDB text index on description + synonyms)
-    """
     col  = _icd10_col()
     text = entity_text.strip()
 
-    # 1. Exact code match
+    # Tier 1a — Exact code match (try with and without dots)
     result = col.find_one({"code": text.upper()})
+    if not result:
+        result = col.find_one({"code": text.upper().replace(".", "")})
     if result:
         return result
 
-    # 2. Synonym match (case-insensitive)
-    result = col.find_one({"synonyms": {"$regex": f"^{text}$", "$options": "i"}})
+    # Tier 1b — Exact synonym match (case-insensitive)
+    result = col.find_one({"synonyms": {"$regex": f"^{re.escape(text)}$", "$options": "i"}})
     if result:
         return result
 
-    # 3. Full-text search on description
+    # Tier 2 — Full-text search
     results = list(
         col.find(
             {"$text": {"$search": text}},
@@ -80,34 +188,33 @@ def _match_icd10(entity_text: str) -> dict | None:
     if results:
         return results[0]
 
-    return None
+    # Tier 3 — Semantic similarity fallback
+    return find_best_icd10(text, _get_db())
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CPT MATCHING  (3-tier)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _match_cpt(keyword: str) -> dict | None:
-    """
-    Match a keyword to a CPT/HCPCS code using 3-step lookup:
-      1. Exact code match
-      2. Exact synonym match
-      3. Full-text search on description
-    """
     col  = _cpt_col()
     text = keyword.strip()
 
-    # 1. Exact code match
+    # Tier 1a — Exact code match
     result = col.find_one({"code": text.upper()})
     if result:
         return result
 
-    # 2. Synonym match
-    result = col.find_one({"synonyms": {"$regex": f"^{text}$", "$options": "i"}})
+    # Tier 1b — Exact synonym match
+    result = col.find_one({"synonyms": {"$regex": f"^{re.escape(text)}$", "$options": "i"}})
     if result:
         return result
 
-    # 3. Full-text search
+    # Tier 2 — Full-text search
     results = list(
         col.find(
             {"$text": {"$search": text}},
-            {"score": {"$meta": "textScore"}, "code": 1, "description": 1, "synonyms": 1}
+            {"score": {"$meta": "textScore"}, "code": 1, "description": 1}
         )
         .sort([("score", {"$meta": "textScore"})])
         .limit(1)
@@ -115,43 +222,35 @@ def _match_cpt(keyword: str) -> dict | None:
     if results:
         return results[0]
 
-    return None
+    # Tier 3 — Semantic similarity fallback
+    return find_best_cpt(text, _get_db())
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CPT KEYWORD EXTRACTION FROM TEXT
+# CPT KEYWORD SCAN LIST
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Procedure-related keywords to scan for in the full clinical text.
-# These are terms that rarely appear as NER entities but indicate procedures.
 CPT_SCAN_KEYWORDS = [
-    "ecg", "ekg", "electrocardiogram",
-    "chest x-ray", "chest xray", "cxr",
+    "electrocardiogram", "echocardiogram", "stress test",
+    "chest x-ray", "chest xray",
     "mri", "ct scan", "ultrasound", "sonography",
-    "spirometry", "pulmonary function test", "pft",
+    "spirometry", "pulmonary function test",
     "colonoscopy", "endoscopy", "bronchoscopy",
-    "complete blood count", "cbc", "fbc",
-    "comprehensive metabolic panel", "cmp",
-    "basic metabolic panel", "bmp",
-    "hba1c", "hemoglobin a1c",
-    "fasting blood sugar", "fbs", "blood glucose",
-    "tsh", "thyroid function",
+    "complete blood count", "comprehensive metabolic panel",
+    "basic metabolic panel", "liver function test",
+    "kidney function test", "thyroid function test",
+    "thyroid stimulating hormone",
+    "hemoglobin a1c", "fasting blood sugar", "blood glucose",
     "lipid profile", "cholesterol panel",
-    "liver function test", "lft",
-    "kidney function test", "kft",
-    "urinalysis", "urine culture",
-    "blood culture",
-    "inr", "prothrombin time",
-    "crp", "c-reactive protein",
-    "follow up", "follow-up", "office visit",
-    "hospital admission", "admitted",
-    "physical therapy", "physiotherapy",
-    "psychotherapy", "counselling",
-    "nebulizer", "inhaler",
-    "vaccination", "immunization",
+    "urinalysis", "urine culture", "blood culture",
+    "international normalized ratio", "prothrombin time",
+    "c-reactive protein", "erythrocyte sedimentation rate",
+    "follow up", "office visit", "hospital admission",
+    "physical therapy", "physiotherapy", "psychotherapy",
+    "nebulizer", "vaccination", "immunization",
     "biopsy", "wound repair", "suture",
     "joint injection", "steroid injection",
-    "chemotherapy", "dialysis",
+    "chemotherapy", "dialysis", "infusion",
 ]
 
 
@@ -161,12 +260,11 @@ CPT_SCAN_KEYWORDS = [
 
 def assign_codes(entities: list[dict], full_text: str = "") -> dict:
     """
-    Map NLP entities to ICD-10 and CPT codes using MongoDB lookup.
+    Map NLP entities to ICD-10 and CPT codes.
 
     Args:
-        entities:  Output of extract_entities()
-                   e.g. [{"text": "Diabetes Mellitus", "label": "DISEASE"}, ...]
-        full_text: Cleaned clinical text — scanned for CPT procedure keywords.
+        entities:  Output of extract_entities() — affirmed, current entities only
+        full_text: Full cleaned text for fallback rules and CPT keyword scanning
 
     Returns:
         {
@@ -185,7 +283,7 @@ def assign_codes(entities: list[dict], full_text: str = "") -> dict:
     seen_icd10: set[str] = set()
     seen_cpt:   set[str] = set()
 
-    # ── ICD-10: match each NLP entity ────────────────────────────────────────
+    # ── ICD-10 from NER entities ──────────────────────────────────────────────
     for entity in entities:
         text  = entity.get("text", "")
         label = entity.get("label", "")
@@ -201,9 +299,14 @@ def assign_codes(entities: list[dict], full_text: str = "") -> dict:
                 icd10_codes.append(code)
                 diagnoses.append(match["description"])
         else:
-            logger.debug("No ICD-10 match for entity: '%s'", text)
+            logger.debug("No ICD-10 match for: '%s'", text)
 
-    # ── CPT: scan full text for procedure keywords ────────────────────────────
+    # ── ICD-10 fallback rules (for conditions scispaCy misses) ────────────────
+    fallback_codes, fallback_diagnoses = _apply_fallback_rules(full_text, seen_icd10)
+    icd10_codes.extend(fallback_codes)
+    diagnoses.extend(fallback_diagnoses)
+
+    # ── CPT from full text keyword scan ───────────────────────────────────────
     text_lower = full_text.lower()
 
     for keyword in CPT_SCAN_KEYWORDS:
@@ -220,12 +323,10 @@ def assign_codes(entities: list[dict], full_text: str = "") -> dict:
 
     # ── Fallbacks ─────────────────────────────────────────────────────────────
     if not icd10_codes:
-        logger.warning("No ICD-10 codes matched — using fallback Z00.00")
         icd10_codes = ["Z00.00"]
         diagnoses   = ["Encounter for general examination without abnormal findings"]
 
     if not cpt_codes:
-        logger.warning("No CPT codes matched — using fallback 99213")
         cpt_codes  = ["99213"]
         procedures = ["Office or other outpatient visit, established patient"]
 
