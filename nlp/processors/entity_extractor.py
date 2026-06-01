@@ -1,7 +1,15 @@
 """
 entity_extractor.py
 ─────────────────────────────────────────────────────────────────────────────
-Loads scispaCy model and extracts medical entities from clinical text.
+Full clinical NLP pipeline:
+
+  1. Section classification  — extract only coding-relevant sections
+  2. Abbreviation expansion  — HTN → hypertension, SOB → shortness of breath
+  3. NER                     — en_ner_bc5cdr_md (DISEASE + CHEMICAL entities)
+  4. Context filtering       — medspaCy ConText removes:
+                               negated, historical, hypothetical, family entities
+  5. Deduplication           — remove substring duplicates
+
 Called by nlp_service.py.
 """
 
@@ -10,30 +18,73 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
+from processors.abbreviation_expander import expand_abbreviations
+from processors.section_classifier import extract_coding_text
+
 logger = logging.getLogger(__name__)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# MODEL LOADING
+# ─────────────────────────────────────────────────────────────────────────────
+
 @lru_cache(maxsize=1)
-def _load_model():
+def _load_pipeline():
     """
-    Load scispaCy model once and cache it for the process lifetime.
-    Falls back to en_core_web_sm if medical model is not installed.
+    Build and cache the full medspaCy pipeline.
+
+    Components:
+      - en_ner_bc5cdr_md   : scispaCy model for DISEASE + CHEMICAL NER
+      - medspacy_context   : ConText algorithm for negation/historical/hypothetical
+    """
+    import spacy
+    import medspacy
+
+    try:
+        nlp = spacy.load("en_ner_bc5cdr_md")
+        logger.info("Loaded NER model: en_ner_bc5cdr_md")
+    except OSError:
+        logger.warning("en_ner_bc5cdr_md not found — falling back to en_core_web_sm")
+        nlp = spacy.load("en_core_web_sm")
+
+    # Add medspaCy context component for negation + historical + hypothetical detection
+    nlp.add_pipe("medspacy_context")
+    logger.info("medspaCy context component added.")
+
+    return nlp
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTEXT FILTER
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _is_valid(ent) -> bool:
+    """
+    Return True only if entity should be coded.
+    Filters out negated, historical, hypothetical, and family context entities.
     """
     try:
-        import spacy
-        nlp = spacy.load("en_ner_bc5cdr_md")
-        logger.info("Loaded scispaCy model: en_ner_bc5cdr_md")
-        return nlp
-    except OSError:
-        logger.warning(
-            "en_ner_bc5cdr_md not found — falling back to en_core_web_sm.\n"
-            "Install the medical model:\n"
-            "  pip install https://s3-us-west-2.amazonaws.com/ai-neuro-scispacy/"
-            "releases/v0.5.5/en_ner_bc5cdr_md-0.5.5.tar.gz"
-        )
-        import spacy
-        return spacy.load("en_core_web_sm")
+        if ent._.is_negated:
+            logger.debug("Skipping negated: '%s'", ent.text)
+            return False
+        if ent._.is_historical:
+            logger.debug("Skipping historical: '%s'", ent.text)
+            return False
+        if ent._.is_hypothetical:
+            logger.debug("Skipping hypothetical: '%s'", ent.text)
+            return False
+        if ent._.is_family:
+            logger.debug("Skipping family: '%s'", ent.text)
+            return False
+        return True
+    except AttributeError:
+        # medspaCy context attributes not available — accept all
+        return True
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEDUPLICATION
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _dedupe(entities: list[dict]) -> list[dict]:
     """
@@ -55,30 +106,56 @@ def _dedupe(entities: list[dict]) -> list[dict]:
     return seen
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PUBLIC API
+# ─────────────────────────────────────────────────────────────────────────────
+
 def extract_entities(text: str) -> list[dict]:
     """
-    Extract medical entities from clinical text.
+    Full pipeline:
+      section filter → abbreviation expansion → NER → context filter → dedupe
 
-    Returns:
+    Returns only affirmed, current, non-family entities:
     [
-        {"text": "Diabetes Mellitus", "label": "DISEASE"},
-        {"text": "Metformin",         "label": "CHEMICAL"},
+        {"text": "type 2 diabetes mellitus", "label": "DISEASE"},
+        {"text": "metformin",                "label": "CHEMICAL"},
         ...
     ]
     """
     if not text or not text.strip():
         return []
 
-    nlp = _load_model()
-    doc = nlp(text)
+    # ── Step 1: Extract only coding-relevant sections ─────────────────────────
+    coding_text = extract_coding_text(text)
+    logger.debug("Coding text: %d chars (original: %d)", len(coding_text), len(text))
 
-    # Skip clearly non-medical labels from fallback model
-    skip_labels = {"ORG", "GPE", "PERSON", "DATE", "TIME", "CARDINAL", "ORDINAL", "MONEY"}
+    # ── Step 2: Expand abbreviations ──────────────────────────────────────────
+    expanded_text = expand_abbreviations(coding_text)
 
-    entities = [
-        {"text": ent.text.strip(), "label": ent.label_}
-        for ent in doc.ents
-        if len(ent.text.strip()) > 2 and ent.label_ not in skip_labels
-    ]
+    # ── Step 3: NER ───────────────────────────────────────────────────────────
+    nlp = _load_pipeline()
+    doc = nlp(expanded_text)
 
+    # Skip non-medical labels from fallback model
+    skip_labels = {"ORG", "GPE", "PERSON", "DATE", "TIME", "CARDINAL", "ORDINAL", "MONEY", "LOC"}
+
+    # ── Step 4: Context filter ────────────────────────────────────────────────
+    entities: list[dict] = []
+
+    for ent in doc.ents:
+        text_clean = ent.text.strip()
+
+        if len(text_clean) <= 2:
+            continue
+        if ent.label_ in skip_labels:
+            continue
+        if not _is_valid(ent):
+            continue
+
+        entities.append({
+            "text":  text_clean,
+            "label": ent.label_,
+        })
+
+    # ── Step 5: Deduplicate ───────────────────────────────────────────────────
     return _dedupe(entities)
