@@ -57,6 +57,39 @@ export async function POST(req: NextRequest) {
         }
 
         const data = await response.json();
+        console.log("Raw response from NLP service:", JSON.stringify(data, null, 2));
+
+        // ✅ Validate and fix response data structure
+        // Handle cases where data might be stringified
+        let icd10Data = data.icd10 || [];
+        let cptData = data.cpt || [];
+        const diagnosis = data.diagnosis || [];
+        const procedure = data.procedure || [];
+
+        // If icd10Data is a string, parse it
+        if (typeof icd10Data === 'string') {
+            console.warn("WARNING: icd10Data is a string, attempting to parse...", icd10Data);
+            try {
+                icd10Data = JSON.parse(icd10Data);
+            } catch (e) {
+                console.error("Failed to parse icd10Data:", e);
+                icd10Data = [];
+            }
+        }
+
+        // If cptData is a string, parse it
+        if (typeof cptData === 'string') {
+            console.warn("WARNING: cptData is a string, attempting to parse...", cptData);
+            try {
+                cptData = JSON.parse(cptData);
+            } catch (e) {
+                console.error("Failed to parse cptData:", e);
+                cptData = [];
+            }
+        }
+
+        console.log("Parsed icd10Data:", icd10Data);
+        console.log("Parsed cptData:", cptData);
 
         // Upload file to Cloudinary
         const arrayBuffer = await file.arrayBuffer();
@@ -92,10 +125,10 @@ export async function POST(req: NextRequest) {
 
         const result = await Result.create({
             recordId: record._id,
-            icd10: data.icd10,
-            cpt: data.cpt,
-            diagnosis: data.diagnosis,
-            procedure: data.procedure,
+            icd10: icd10Data.length > 0 ? icd10Data : [],
+            cpt: cptData.length > 0 ? cptData : [],
+            diagnosis: diagnosis.length > 0 ? diagnosis : undefined,
+            procedure: procedure.length > 0 ? procedure : undefined,
         });
 
         return NextResponse.json({
