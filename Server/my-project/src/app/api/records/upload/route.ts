@@ -91,6 +91,13 @@ export async function POST(req: NextRequest) {
         console.log("Parsed icd10Data:", icd10Data);
         console.log("Parsed cptData:", cptData);
 
+        // ✅ Validate data types before storing
+        const icd10Array = Array.isArray(icd10Data) ? icd10Data : [];
+        const cptArray = Array.isArray(cptData) ? cptData : [];
+
+        console.log("Final icd10Array type:", typeof icd10Array, "is Array:", Array.isArray(icd10Array));
+        console.log("Final cptArray type:", typeof cptArray, "is Array:", Array.isArray(cptArray));
+
         // Upload file to Cloudinary
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
@@ -125,8 +132,8 @@ export async function POST(req: NextRequest) {
 
         const result = await Result.create({
             recordId: record._id,
-            icd10: icd10Data.length > 0 ? icd10Data : [],
-            cpt: cptData.length > 0 ? cptData : [],
+            icd10: icd10Array,
+            cpt: cptArray,
             diagnosis: diagnosis.length > 0 ? diagnosis : undefined,
             procedure: procedure.length > 0 ? procedure : undefined,
         });
@@ -134,7 +141,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             success: true,
             record,
-            result,
+            result: {
+                ...result.toObject(),
+                icd10: icd10Array,  // Return exact data that was stored
+                cpt: cptArray,      // Return exact data that was stored
+            },
         });
 
     } catch (error) {

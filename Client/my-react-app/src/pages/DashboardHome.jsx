@@ -54,6 +54,11 @@ export default function DashboardHome() {
     ];
     const getColor = (name = "") => avatarColors[name.charCodeAt(0) % avatarColors.length];
 
+    const getCodeValue = (code) =>
+        typeof code === "string"
+            ? code
+            : code?.code || "";
+
     const badgeStyle = (status) =>
         status === "processed"
             ? "bg-green-100 text-green-700"
@@ -131,11 +136,14 @@ export default function DashboardHome() {
                                     <div className="flex gap-1.5 flex-wrap">
                                         {[...(rec.result?.icd10 || []), ...(rec.result?.cpt || [])]
                                             .slice(0, 2)
-                                            .map((code) => (
-                                                <span key={code} className="font-mono text-xs px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-gray-500">
-                                                    {code}
-                                                </span>
-                                            ))}
+                                            .map((code, idx) => {
+                                                const codeValue = getCodeValue(code);
+                                                return codeValue ? (
+                                                    <span key={`${codeValue}-${idx}`} className="font-mono text-xs px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-gray-500">
+                                                        {codeValue}
+                                                    </span>
+                                                ) : null;
+                                            })}
                                     </div>
                                     <span className={`text-xs px-2.5 py-1 rounded-full flex-shrink-0 ${badgeStyle(rec.status)}`}>
                                         {rec.status === "processed" ? "Processed" : "Pending"}

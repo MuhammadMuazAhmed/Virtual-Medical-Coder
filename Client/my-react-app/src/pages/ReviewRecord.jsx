@@ -15,6 +15,31 @@ export default function ReviewRecord() {
     const [newIcd10, setNewIcd10] = useState("");
     const [newCpt, setNewCpt] = useState("");
 
+    const normalizeCodes = (codes) =>
+        Array.isArray(codes)
+            ? codes
+                  .map((c) => (typeof c === "string" ? c : c?.code || ""))
+                  .filter(Boolean)
+            : [];
+
+    const getCodeMeta = (code) => {
+        if (typeof code === "string") {
+            return { codeValue: code, evidence: "", matchType: "", confidence: null };
+        }
+        return {
+            codeValue: code?.code || "",
+            evidence: code?.evidence || code?.reason || "",
+            matchType: code?.matchType || "",
+            confidence: code?.confidence ?? null,
+        };
+    };
+
+    const findCodeMeta = (codeValue, codes = []) => {
+        if (!Array.isArray(codes)) return getCodeMeta(codeValue);
+        const match = codes.find((c) => (typeof c === "string" ? c : c?.code) === codeValue);
+        return getCodeMeta(match || codeValue);
+    };
+
     const [loading, setLoading] = useState(false);
     const [approving, setApproving] = useState(false);
     const [error, setError] = useState("");
@@ -29,8 +54,8 @@ export default function ReviewRecord() {
                 const res = await getSingleRecord(id);
                 const data = res.data;
                 setRecord(data);
-                setIcd10Codes(data.result?.icd10 || []);
-                setCptCodes(data.result?.cpt || []);
+                setIcd10Codes(normalizeCodes(data.result?.icd10 || []));
+                setCptCodes(normalizeCodes(data.result?.cpt || []));
                 setDiagnosis(data.result?.diagnosis || []);
                 setProcedure(data.result?.procedure || []);
             } catch (err) {
@@ -181,22 +206,36 @@ export default function ReviewRecord() {
                     </h3>
 
                     {/* Existing codes */}
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="space-y-3 mb-4">
                         {icd10Codes.length > 0 ? (
-                            icd10Codes.map((code) => (
-                                <div
-                                    key={code}
-                                    className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 group"
-                                >
-                                    {code}
-                                    <button
-                                        onClick={() => removeIcd10(code)}
-                                        className="opacity-0 group-hover:opacity-100 transition text-blue-700 hover:text-blue-900 font-bold"
+                            icd10Codes.map((codeValue, idx) => {
+                                const { evidence, matchType, confidence } = findCodeMeta(codeValue, record.result?.icd10);
+                                return codeValue ? (
+                                    <div
+                                        key={`${codeValue}-${idx}`}
+                                        className="bg-blue-50 border border-blue-100 rounded-xl p-3"
                                     >
-                                        ×
-                                    </button>
-                                </div>
-                            ))
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <span className="font-mono text-sm px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                                {codeValue}
+                                            </span>
+                                            <button
+                                                onClick={() => removeIcd10(codeValue)}
+                                                className="text-blue-700 hover:text-blue-900 font-bold"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                        {(evidence || matchType || confidence !== null) && (
+                                            <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                                {evidence && <div><strong>Evidence:</strong> {evidence}</div>}
+                                                {matchType && <div><strong>Match type:</strong> {matchType}</div>}
+                                                {confidence !== null && <div><strong>Confidence:</strong> {confidence}</div>}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : null;
+                            })
                         ) : (
                             <p className="text-gray-400 text-sm">No ICD codes</p>
                         )}
@@ -228,22 +267,36 @@ export default function ReviewRecord() {
                     </h3>
 
                     {/* Existing codes */}
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="space-y-3 mb-4">
                         {cptCodes.length > 0 ? (
-                            cptCodes.map((code) => (
-                                <div
-                                    key={code}
-                                    className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 group"
-                                >
-                                    {code}
-                                    <button
-                                        onClick={() => removeCpt(code)}
-                                        className="opacity-0 group-hover:opacity-100 transition text-green-700 hover:text-green-900 font-bold"
+                            cptCodes.map((codeValue, idx) => {
+                                const { evidence, matchType, confidence } = findCodeMeta(codeValue, record.result?.cpt);
+                                return codeValue ? (
+                                    <div
+                                        key={`${codeValue}-${idx}`}
+                                        className="bg-green-50 border border-green-100 rounded-xl p-3"
                                     >
-                                        ×
-                                    </button>
-                                </div>
-                            ))
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <span className="font-mono text-sm px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                                                {codeValue}
+                                            </span>
+                                            <button
+                                                onClick={() => removeCpt(codeValue)}
+                                                className="text-green-700 hover:text-green-900 font-bold"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                        {(evidence || matchType || confidence !== null) && (
+                                            <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                                {evidence && <div><strong>Evidence:</strong> {evidence}</div>}
+                                                {matchType && <div><strong>Match type:</strong> {matchType}</div>}
+                                                {confidence !== null && <div><strong>Confidence:</strong> {confidence}</div>}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : null;
+                            })
                         ) : (
                             <p className="text-gray-400 text-sm">No CPT codes</p>
                         )}

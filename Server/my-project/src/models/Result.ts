@@ -48,19 +48,14 @@ const cptEntrySchema = new Schema(
 const resultSchema: Schema<Result> = new Schema(
     {
         recordId: { type: mongoose.Schema.Types.ObjectId, ref: "Record", required: true },
-        icd10: {
-            type: [mongoose.Schema.Types.Mixed],  // Supports both string and objects
-            required: true,
-        },
-        cpt: {
-            type: [mongoose.Schema.Types.Mixed],  // Supports both string and objects
-            required: true,
-        },
-        diagnosis: { type: [String] },     // Optional, for legacy format
-        procedure: { type: [String] },     // Optional, for legacy format
+        icd10: [Schema.Types.Mixed],  // Array of anything (strings or objects)
+        cpt: [Schema.Types.Mixed],    // Array of anything (strings or objects)
+        diagnosis: [String],          // Optional, for legacy format
+        procedure: [String],          // Optional, for legacy format
     },
     {
-        timestamps: true, // Automatically manages createdAt and updatedAt
+        timestamps: true,
+        strict: false,
     }
 );
 

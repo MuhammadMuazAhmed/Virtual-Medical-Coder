@@ -49,6 +49,11 @@ export default function RecordsPage() {
         }).length,
     };
 
+    const getCodeValue = (code) =>
+        typeof code === "string"
+            ? code
+            : code?.code || "";
+
     const filteredRecords = records
         .filter((r) => {
             if (filter === "all") return true;
@@ -59,7 +64,11 @@ export default function RecordsPage() {
         .filter((r) => {
             if (!search) return true;
             const name = r.patient?.PatientName?.toLowerCase() || "";
-            const codes = [...(r.result?.icd10 || []), ...(r.result?.cpt || [])].join(" ").toLowerCase();
+            const codes = [...(r.result?.icd10 || []), ...(r.result?.cpt || [])]
+                .map(getCodeValue)
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
             return name.includes(search.toLowerCase()) || codes.includes(search.toLowerCase());
         });
 
@@ -201,14 +210,17 @@ export default function RecordsPage() {
                                 <div className="flex flex-wrap gap-1.5 mb-3">
                                     {[...(rec.result?.icd10 || []), ...(rec.result?.cpt || [])]
                                         .slice(0, 4)
-                                        .map((code) => (
-                                            <span
-                                                key={code}
-                                                className="font-mono text-xs px-2 py-0.5 bg-gray-50 border border-gray-200 rounded text-gray-500"
-                                            >
-                                                {code}
-                                            </span>
-                                        ))}
+                                        .map((code, idx) => {
+                                            const codeValue = getCodeValue(code);
+                                            return codeValue ? (
+                                                <span
+                                                    key={`${codeValue}-${idx}`}
+                                                    className="font-mono text-xs px-2 py-0.5 bg-gray-50 border border-gray-200 rounded text-gray-500"
+                                                >
+                                                    {codeValue}
+                                                </span>
+                                            ) : null;
+                                        })}
                                 </div>
                             )}
 

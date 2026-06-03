@@ -4,12 +4,22 @@ from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel
+import json
+from dataclasses import asdict, is_dataclass
 
 from services.ocr_service import extract_text_from_file
 from services.nlp_service import run_nlp
 from utils.text_cleaner import clean_text
 
 router = APIRouter()
+
+
+class DataclassJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle dataclass serialization."""
+    def default(self, obj):
+        if is_dataclass(obj):
+            return asdict(obj)
+        return super().default(obj)
 
 
 class ProcessNoteRequest(BaseModel):
