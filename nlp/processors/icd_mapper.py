@@ -376,21 +376,84 @@ def _normalize_fulltext_score(raw_score: float, max_score: float = 100.0) -> flo
     return min(1.0, raw_score / max_score) if max_score > 0 else 0.0
 
 
+MIN_ICD_CONFIDENCE = 0.70
+MIN_ICD_OUTPUT_CONFIDENCE = 0.10
+TRAUMA_TERMS = (
+    "motorcycle", "collision", "accident", "rear-end", "whiplash",
+    "laceration", "injury", "wound", "trauma"
+)
+TRAUMA_CODE_PREFIXES = ("S", "T", "V", "W", "X")
+P_RELEVANT_KEYWORDS = ("newborn", "neonatal", "birth injury", "infant", "delivery", "labor", "preterm")
+O_RELEVANT_KEYWORDS = ("pregnancy", "pregnant", "maternal", "obstetric", "prenatal", "postpartum", "labor", "delivery")
+Q_RELEVANT_KEYWORDS = ("congenital", "birth defect", "genetic", "abnormality", "syndrome", "hereditary")
+
+
 def _boost_trauma_codes(code: str) -> float:
     """
     Apply trauma-specific relevance boost for injury codes.
 
-    ICD codes S00-T88 are trauma/injury codes. Boost them slightly when
-    matching trauma concepts to prevent unrelated codes.
+    ICD codes S/T/V/W/X are trauma/injury and external cause codes.
+    Boost them slightly when matching trauma concepts to prevent unrelated codes.
 
     Returns:
         0.1 for trauma codes, 0.0 for others
     """
-    if code.startswith(("S", "T")):
+    if code.startswith(("S", "T", "V", "W", "X")):
         return 0.1
     return 0.0
 
-def _match_icd10_candidates(entity_text: str, return_top_n: int = 3) -> list[ICDCandidate]:
+
+def _text_contains_any(text: str, keywords: tuple[str, ...]) -> bool:
+    return any(keyword in text for keyword in keywords)
+
+
+def _is_trauma_context(text: str) -> bool:
+    return _text_contains_any(text.lower(), TRAUMA_TERMS)
+
+
+def _is_trauma_code(code: str) -> bool:
+    return code.startswith(TRAUMA_CODE_PREFIXES)
+
+
+def _validate_semantic_candidate(
+    entity_text: str,
+    context_text: str,
+    code: str,
+    description: str,
+    semantic_score: float,
+) -> tuple[bool, str]:
+    """Validate a semantic ICD candidate before acceptance."""
+    text = f"{entity_text} {context_text}".lower()
+
+    if semantic_score < MIN_ICD_CONFIDENCE:
+        return False, "LOW_CONFIDENCE"
+
+    if code.startswith("P") and not _text_contains_any(text, P_RELEVANT_KEYWORDS):
+        return False, "IRRELEVANT_CATEGORY"
+
+    if code.startswith("O") and not _text_contains_any(text, O_RELEVANT_KEYWORDS):
+        return False, "IRRELEVANT_CATEGORY"
+
+    if code.startswith("Q") and not _text_contains_any(text, Q_RELEVANT_KEYWORDS):
+        return False, "IRRELEVANT_CATEGORY"
+
+    if _is_trauma_context(text) and not _is_trauma_code(code):
+        return False, "SEMANTIC_MISMATCH"
+
+    description_lower = description.lower()
+    if _is_trauma_context(text) and "self-harm" in description_lower:
+        return False, "SEMANTIC_MISMATCH"
+
+    if _is_trauma_context(text) and "assault" in description_lower and not _text_contains_any(text, ("assault", "attack", "beaten", "violence", "shot", "stab")):
+        return False, "SEMANTIC_MISMATCH"
+
+    if "injur" in entity_text.lower() and code.startswith("P") and "birth" in description_lower:
+        return False, "SEMANTIC_MISMATCH"
+
+    return True, ""
+
+
+def _match_icd10_candidates(entity_text: str, return_top_n: int = 3, context_text: str = "") -> list[ICDCandidate]:
     """
     Find ICD-10 candidates for entity with confidence scores.
 
@@ -457,29 +520,59 @@ def _match_icd10_candidates(entity_text: str, return_top_n: int = 3) -> list[ICD
                 trauma_boost=_boost_trauma_codes(result["code"]),
             )
             candidate.calculate_confidence()
-            candidates.append(candidate)
+            if candidate.final_confidence >= MIN_ICD_OUTPUT_CONFIDENCE:
+                candidates.append(candidate)
+            else:
+                logger.warning(
+                    "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
+                    candidate.code,
+                    round(candidate.final_confidence, 3),
+                    "LOW_CONFIDENCE",
+                )
 
     # Tier 3 — Semantic similarity (semantic_score + trauma_boost)
     if not candidates:
         result = find_best_icd10(text, _get_db())
         if result:
-            # find_best_icd10 returns dict with 'score', 'code', 'description'
-            semantic_score = min(1.0, result.get("score", 0.0) / 100.0)  # normalize
-            candidate = ICDCandidate(
+            semantic_score = result.get("score", 0.0)
+            valid, reason = _validate_semantic_candidate(
+                entity_text=text,
+                context_text=context_text,
                 code=result["code"],
                 description=result.get("description", ""),
                 semantic_score=semantic_score,
-                trauma_boost=_boost_trauma_codes(result["code"]),
             )
-            candidate.calculate_confidence()
-            candidates.append(candidate)
+            if not valid:
+                logger.warning(
+                    "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
+                    result.get("code"),
+                    round(semantic_score, 3),
+                    reason,
+                )
+            else:
+                candidate = ICDCandidate(
+                    code=result["code"],
+                    description=result.get("description", ""),
+                    semantic_score=semantic_score,
+                    trauma_boost=_boost_trauma_codes(result["code"]),
+                )
+                candidate.calculate_confidence()
+                if candidate.final_confidence >= MIN_ICD_OUTPUT_CONFIDENCE:
+                    candidates.append(candidate)
+                else:
+                    logger.warning(
+                        "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
+                        candidate.code,
+                        round(candidate.final_confidence, 3),
+                        "LOW_CONFIDENCE",
+                    )
 
     # Sort by confidence (highest first) and return top N
     candidates.sort(key=lambda c: c.final_confidence, reverse=True)
     return candidates[:return_top_n]
 
 
-def _match_icd10(entity_text: str) -> dict | None:
+def _match_icd10(entity_text: str, context_text: str = "") -> dict | None:
     """
     Find best ICD-10 match for entity (backward compatible).
 
@@ -487,11 +580,12 @@ def _match_icd10(entity_text: str) -> dict | None:
 
     Args:
         entity_text: Clinical term to match
+        context_text: Additional text context to validate category relevance
 
     Returns:
         Dict with code, description, score (or None if no match found)
     """
-    candidates = _match_icd10_candidates(entity_text, return_top_n=1)
+    candidates = _match_icd10_candidates(entity_text, return_top_n=1, context_text=context_text)
 
     if candidates:
         top = candidates[0]
@@ -634,7 +728,7 @@ def assign_codes(entities: list[dict], full_text: str = "", explain: bool = True
         search_term = f"{concept} {body_part}".strip() if body_part else concept
 
         logger.debug(f"Searching trauma concept: {search_term}")
-        match = _match_icd10(search_term)
+        match = _match_icd10(search_term, full_text)
 
         if match:
             code = match["code"]
@@ -665,7 +759,7 @@ def assign_codes(entities: list[dict], full_text: str = "", explain: bool = True
         if label not in ("DISEASE", "CHEMICAL", ""):
             continue
 
-        match = _match_icd10(text)
+        match = _match_icd10(text, full_text)
         if match:
             code = match["code"]
             if code not in seen_icd10:

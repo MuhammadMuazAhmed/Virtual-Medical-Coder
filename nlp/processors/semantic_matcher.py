@@ -116,6 +116,7 @@ def _semantic_search(
             "Semantic match: '%s' → '%s' (%s) score=%.3f",
             query, best_match["description"], best_match["code"], best_score
         )
+        best_match["score"] = best_score
         return best_match
 
     logger.debug(
