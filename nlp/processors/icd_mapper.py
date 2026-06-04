@@ -245,6 +245,81 @@ def _is_uncertain_context(text: str, keyword_pos: int) -> bool:
     return any(marker in sent_text for marker in UNCERTAIN_MARKERS)
 
 
+SUSPECTED_MARKERS = [
+    "check for",
+    "rule out",
+    "r/o",
+    "possible",
+    "possibly",
+    "suspected",
+    "evaluate for",
+    "investigate",
+    "screen for",
+    "concern for",
+    "may have",
+    "might have",
+]
+
+
+def _get_entity_regex(entity_text: str) -> str:
+    """Generate a regex pattern to match entity text with potential plural/verb endings."""
+    entity_lower = entity_text.lower().strip()
+    if entity_lower.endswith("y"):
+        root = entity_lower[:-1]
+        return r"\b" + re.escape(root) + r"(?:y|ies|ied|ying)\b"
+    elif entity_lower.endswith("e"):
+        root = entity_lower[:-1]
+        return r"\b" + re.escape(root) + r"(?:e|es|ed|ing)\b"
+    else:
+        return r"\b" + re.escape(entity_lower) + r"(?:s|es|ed|ing)?\b"
+
+
+def _is_span_suspected(text: str, start: int, end: int) -> bool:
+    """Check if a specific character span is in a suspected/uncertain context."""
+    # Find sentence boundaries
+    sent_start = max(0, text.rfind(".", 0, start), text.rfind("\n", 0, start))
+    # Extract sentence before the span
+    sent_before = text[sent_start:start].lower()
+    
+    return any(marker in sent_before for marker in SUSPECTED_MARKERS)
+
+
+def _is_entity_suspected(text: str, entity_text: str) -> bool:
+    """Check if all occurrences of entity_text in text are in suspected contexts."""
+    pattern = _get_entity_regex(entity_text)
+    try:
+        matches = list(re.finditer(pattern, text.lower()))
+    except re.error:
+        # Fallback if regex compilation fails
+        pattern = r"\b" + re.escape(entity_text.lower().strip()) + r"\b"
+        matches = list(re.finditer(pattern, text.lower()))
+
+    if not matches:
+        # Fallback: look for substring
+        entity_lower = entity_text.lower().strip()
+        start = 0
+        found_any = False
+        all_suspected = True
+        while True:
+            pos = text.lower().find(entity_lower, start)
+            if pos == -1:
+                break
+            found_any = True
+            if not _is_span_suspected(text, pos, pos + len(entity_lower)):
+                all_suspected = False
+                break
+            start = pos + len(entity_lower)
+        return all_suspected if found_any else False
+
+    # Check if all matches are suspected
+    for match in matches:
+        start, end = match.span()
+        if not _is_span_suspected(text, start, end):
+            return False  # Found at least one confirmed mention
+
+    return True
+
+
 def _apply_fallback_rules(text: str, seen_codes: set) -> tuple[list, list]:
     """
     Scan full text for chronic conditions scispaCy misses.
@@ -453,7 +528,12 @@ def _validate_semantic_candidate(
     return True, ""
 
 
-def _match_icd10_candidates(entity_text: str, return_top_n: int = 3, context_text: str = "") -> list[ICDCandidate]:
+def _match_icd10_candidates(
+    entity_text: str,
+    return_top_n: int = 3,
+    context_text: str = "",
+    span: tuple[int, int] | None = None,
+) -> list[ICDCandidate]:
     """
     Find ICD-10 candidates for entity with confidence scores.
 
@@ -462,6 +542,8 @@ def _match_icd10_candidates(entity_text: str, return_top_n: int = 3, context_tex
     Args:
         entity_text: Clinical term to match
         return_top_n: Number of top candidates to return
+        context_text: Additional text context to validate category relevance
+        span: Optional character span of the entity mention in the text
 
     Returns:
         List of ICDCandidate objects sorted by confidence (highest first)
@@ -469,6 +551,14 @@ def _match_icd10_candidates(entity_text: str, return_top_n: int = 3, context_tex
     col = _icd10_col()
     text = entity_text.strip()
     candidates: list[ICDCandidate] = []
+
+    # Check if this occurrence is a suspected condition
+    is_suspected = False
+    if context_text:
+        if span is not None:
+            is_suspected = _is_span_suspected(context_text, span[0], span[1])
+        else:
+            is_suspected = _is_entity_suspected(context_text, entity_text)
 
     # Tier 1a — Exact code match (exact_match = 1.0)
     result = col.find_one({"code": text.upper()})
@@ -483,7 +573,28 @@ def _match_icd10_candidates(entity_text: str, return_top_n: int = 3, context_tex
             trauma_boost=_boost_trauma_codes(result["code"]),
         )
         candidate.calculate_confidence()
-        candidates.append(candidate)
+        if is_suspected:
+            print("Rejected candidate:")
+            print(f"  code: {candidate.code}")
+            print(f"  confidence: {round(candidate.final_confidence, 3)}")
+            print("  rejection reason: SUSPECTED_CONDITION")
+
+            logger.warning(
+                "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
+                candidate.code,
+                round(candidate.final_confidence, 3),
+                "SUSPECTED_CONDITION",
+            )
+        else:
+            candidates.append(candidate)
+            print("Accepted candidate:")
+            print(f"  query: {text}")
+            print(f"  code: {candidate.code}")
+            print(f"  exact_score: {candidate.exact_match}")
+            print(f"  fulltext_score: {candidate.fulltext_score}")
+            print(f"  semantic_score: {candidate.semantic_score}")
+            print(f"  trauma_boost: {candidate.trauma_boost}")
+            print(f"  final_score: {candidate.final_confidence}")
 
     # Tier 1b — Exact synonym match (exact_match = 0.95)
     if not candidates:
@@ -498,7 +609,28 @@ def _match_icd10_candidates(entity_text: str, return_top_n: int = 3, context_tex
                 trauma_boost=_boost_trauma_codes(result["code"]),
             )
             candidate.calculate_confidence()
-            candidates.append(candidate)
+            if is_suspected:
+                print("Rejected candidate:")
+                print(f"  code: {candidate.code}")
+                print(f"  confidence: {round(candidate.final_confidence, 3)}")
+                print("  rejection reason: SUSPECTED_CONDITION")
+
+                logger.warning(
+                    "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
+                    candidate.code,
+                    round(candidate.final_confidence, 3),
+                    "SUSPECTED_CONDITION",
+                )
+            else:
+                candidates.append(candidate)
+                print("Accepted candidate:")
+                print(f"  query: {text}")
+                print(f"  code: {candidate.code}")
+                print(f"  exact_score: {candidate.exact_match}")
+                print(f"  fulltext_score: {candidate.fulltext_score}")
+                print(f"  semantic_score: {candidate.semantic_score}")
+                print(f"  trauma_boost: {candidate.trauma_boost}")
+                print(f"  final_score: {candidate.final_confidence}")
 
     # Tier 2 — Full-text search (fulltext_score = normalized MongoDB score)
     if not candidates:
@@ -520,15 +652,40 @@ def _match_icd10_candidates(entity_text: str, return_top_n: int = 3, context_tex
                 trauma_boost=_boost_trauma_codes(result["code"]),
             )
             candidate.calculate_confidence()
-            if candidate.final_confidence >= MIN_ICD_OUTPUT_CONFIDENCE:
-                candidates.append(candidate)
-            else:
+            if candidate.final_confidence < MIN_ICD_OUTPUT_CONFIDENCE:
+                print("Rejected candidate:")
+                print(f"  code: {candidate.code}")
+                print(f"  confidence: {round(candidate.final_confidence, 3)}")
+                print("  rejection reason: LOW_CONFIDENCE")
+
                 logger.warning(
                     "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
                     candidate.code,
                     round(candidate.final_confidence, 3),
                     "LOW_CONFIDENCE",
                 )
+            elif is_suspected:
+                print("Rejected candidate:")
+                print(f"  code: {candidate.code}")
+                print(f"  confidence: {round(candidate.final_confidence, 3)}")
+                print("  rejection reason: SUSPECTED_CONDITION")
+
+                logger.warning(
+                    "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
+                    candidate.code,
+                    round(candidate.final_confidence, 3),
+                    "SUSPECTED_CONDITION",
+                )
+            else:
+                candidates.append(candidate)
+                print("Accepted candidate:")
+                print(f"  query: {text}")
+                print(f"  code: {candidate.code}")
+                print(f"  exact_score: {candidate.exact_match}")
+                print(f"  fulltext_score: {candidate.fulltext_score}")
+                print(f"  semantic_score: {candidate.semantic_score}")
+                print(f"  trauma_boost: {candidate.trauma_boost}")
+                print(f"  final_score: {candidate.final_confidence}")
 
     # Tier 3 — Semantic similarity (semantic_score + trauma_boost)
     if not candidates:
@@ -543,6 +700,11 @@ def _match_icd10_candidates(entity_text: str, return_top_n: int = 3, context_tex
                 semantic_score=semantic_score,
             )
             if not valid:
+                print("Rejected candidate:")
+                print(f"  code: {result.get('code')}")
+                print(f"  confidence: {round(semantic_score, 3)}")
+                print(f"  rejection reason: {reason}")
+
                 logger.warning(
                     "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
                     result.get("code"),
@@ -557,22 +719,51 @@ def _match_icd10_candidates(entity_text: str, return_top_n: int = 3, context_tex
                     trauma_boost=_boost_trauma_codes(result["code"]),
                 )
                 candidate.calculate_confidence()
-                if candidate.final_confidence >= MIN_ICD_OUTPUT_CONFIDENCE:
-                    candidates.append(candidate)
-                else:
+                if candidate.final_confidence < MIN_ICD_OUTPUT_CONFIDENCE:
+                    print("Rejected candidate:")
+                    print(f"  code: {candidate.code}")
+                    print(f"  confidence: {round(candidate.final_confidence, 3)}")
+                    print("  rejection reason: LOW_CONFIDENCE")
+
                     logger.warning(
                         "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
                         candidate.code,
                         round(candidate.final_confidence, 3),
                         "LOW_CONFIDENCE",
                     )
+                elif is_suspected:
+                    print("Rejected candidate:")
+                    print(f"  code: {candidate.code}")
+                    print(f"  confidence: {round(candidate.final_confidence, 3)}")
+                    print("  rejection reason: SUSPECTED_CONDITION")
+
+                    logger.warning(
+                        "Rejected ICD candidate | code=%s | confidence=%s | reason=%s",
+                        candidate.code,
+                        round(candidate.final_confidence, 3),
+                        "SUSPECTED_CONDITION",
+                    )
+                else:
+                    candidates.append(candidate)
+                    print("Accepted candidate:")
+                    print(f"  query: {text}")
+                    print(f"  code: {candidate.code}")
+                    print(f"  exact_score: {candidate.exact_match}")
+                    print(f"  fulltext_score: {candidate.fulltext_score}")
+                    print(f"  semantic_score: {candidate.semantic_score}")
+                    print(f"  trauma_boost: {candidate.trauma_boost}")
+                    print(f"  final_score: {candidate.final_confidence}")
 
     # Sort by confidence (highest first) and return top N
     candidates.sort(key=lambda c: c.final_confidence, reverse=True)
     return candidates[:return_top_n]
 
 
-def _match_icd10(entity_text: str, context_text: str = "") -> dict | None:
+def _match_icd10(
+    entity_text: str,
+    context_text: str = "",
+    span: tuple[int, int] | None = None,
+) -> dict | None:
     """
     Find best ICD-10 match for entity (backward compatible).
 
@@ -581,11 +772,14 @@ def _match_icd10(entity_text: str, context_text: str = "") -> dict | None:
     Args:
         entity_text: Clinical term to match
         context_text: Additional text context to validate category relevance
+        span: Optional character span of the entity mention in the text
 
     Returns:
         Dict with code, description, score (or None if no match found)
     """
-    candidates = _match_icd10_candidates(entity_text, return_top_n=1, context_text=context_text)
+    candidates = _match_icd10_candidates(
+        entity_text, return_top_n=1, context_text=context_text, span=span
+    )
 
     if candidates:
         top = candidates[0]
@@ -728,7 +922,8 @@ def assign_codes(entities: list[dict], full_text: str = "", explain: bool = True
         search_term = f"{concept} {body_part}".strip() if body_part else concept
 
         logger.debug(f"Searching trauma concept: {search_term}")
-        match = _match_icd10(search_term, full_text)
+        span = (trauma_entity.get("start"), trauma_entity.get("end")) if "start" in trauma_entity else None
+        match = _match_icd10(search_term, full_text, span=span)
 
         if match:
             code = match["code"]
