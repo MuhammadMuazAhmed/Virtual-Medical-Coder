@@ -453,6 +453,18 @@ def _normalize_fulltext_score(raw_score: float, max_score: float = 100.0) -> flo
 
 MIN_ICD_CONFIDENCE = 0.70
 MIN_ICD_OUTPUT_CONFIDENCE = 0.10
+MIN_TRAUMA_SEMANTIC_SCORE = 0.85
+
+# Generic trauma concepts that should NOT independently generate ICD search queries.
+# These are too vague to produce meaningful semantic matches on their own.
+GENERIC_TRAUMA_CONCEPTS = {
+    "Trauma",
+    "Injury",
+    "Fall",
+    "Assault",
+    "Wound",
+    "Bleeding",
+}
 TRAUMA_TERMS = (
     "motorcycle", "collision", "accident", "rear-end", "whiplash",
     "laceration", "injury", "wound", "trauma"
@@ -918,6 +930,12 @@ def assign_codes(entities: list[dict], full_text: str = "", explain: bool = True
         body_part = trauma_entity.get("body_part")
         original_text = trauma_entity.get("text", concept)
 
+        # FIX #2: Skip generic trauma concepts that produce meaningless semantic searches
+        if concept in GENERIC_TRAUMA_CONCEPTS:
+            logger.debug(f"Skipping generic trauma concept: {concept} (from '{original_text}')")
+            print(f"Skipped generic trauma concept: {concept} (from '{original_text}')")
+            continue
+
         # Construct search term: include body part if known
         search_term = f"{concept} {body_part}".strip() if body_part else concept
 
@@ -927,6 +945,21 @@ def assign_codes(entities: list[dict], full_text: str = "", explain: bool = True
 
         if match:
             code = match["code"]
+            score = match.get("score", 0.0)
+
+            # FIX #3: Require higher semantic threshold for trauma-generated candidates
+            if score < MIN_TRAUMA_SEMANTIC_SCORE:
+                logger.warning(
+                    "Rejected trauma candidate | code=%s | score=%s | reason=BELOW_TRAUMA_THRESHOLD",
+                    code, round(score, 3),
+                )
+                print(f"Rejected trauma candidate:")
+                print(f"  query: {search_term}")
+                print(f"  code: {code}")
+                print(f"  score: {round(score, 3)}")
+                print(f"  rejection reason: BELOW_TRAUMA_THRESHOLD (min={MIN_TRAUMA_SEMANTIC_SCORE})")
+                continue
+
             if code not in seen_icd10:
                 seen_icd10.add(code)
                 
@@ -935,7 +968,7 @@ def assign_codes(entities: list[dict], full_text: str = "", explain: bool = True
                         code=code,
                         evidence=original_text,
                         matchType="trauma_match",
-                        confidence=match.get("score", 1.0)
+                        confidence=score
                     )
                     icd10_results.append(result)
                 else:

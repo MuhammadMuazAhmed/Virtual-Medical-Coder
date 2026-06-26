@@ -333,7 +333,7 @@ def extract_body_part_context(text: str, keyword_start: int, keyword_end: int, w
     context_text = text[start:end].lower()
 
     for body_part_key in BODY_PARTS:
-        if body_part_key in context_text:
+        if re.search(r"\b" + re.escape(body_part_key) + r"\b", context_text):
             return BODY_PARTS[body_part_key]
 
     return None
