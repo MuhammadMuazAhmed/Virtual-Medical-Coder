@@ -6,7 +6,7 @@ export interface User extends Document {
     Email: string;
     Password: string;
     CreatedAt: Date;
-    role?: "doctor" | "admin";
+    role?: "doctor" | "admin" | "compliance_officer";
     isActive?: boolean;
 }
 
@@ -15,7 +15,7 @@ const userSchema: Schema<User> = new Schema({
     Email: { type: String, required: true, unique: true },
     Password: { type: String, required: true },
     CreatedAt: { type: Date, required: true },
-    role: { type: String, enum: ["doctor", "admin"], default: "doctor" },
+    role: { type: String, enum: ["doctor", "admin", "compliance_officer"], default: "doctor" },
     isActive: { type: Boolean, default: true },
 });
 
